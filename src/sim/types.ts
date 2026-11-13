@@ -26,6 +26,8 @@ export interface Pier {
   dock: LngLat;
   historicId?: string;
   berths: number;
+  /** Araç rampası: arabalı vapur yanaşabilir. */
+  ramp?: boolean;
   side: Side;
   /** Kara bileşeni (su ızgarasında). Aynı bileşendeki hücreler yürüme kapsamına girer. */
   comp: number;
@@ -137,6 +139,8 @@ export interface WaitGroup {
   startedAt: number;
   /** Aktarma yapan yolcu (indirimli bilet). */
   xfer?: boolean;
+  /** Bu grup bir kez vapura sığamadı (reddedilen sadece bir kez sayılır). */
+  denied?: boolean;
 }
 
 /** Saatlik memnuniyet hesabı için biriktiriciler. */
@@ -163,6 +167,8 @@ export interface DayStats {
   journeys: number;
   /** Vapurların transit gemilere yol vererek beklediği dakikalar. */
   yieldMinutes?: number;
+  /** Arabalı vapurlarla taşınan araç. */
+  vehicles?: number;
 }
 
 export interface LineStats {

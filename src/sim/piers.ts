@@ -31,6 +31,7 @@ export interface HistoricPier {
   lat: number;
   lng: number;
   start?: boolean;
+  ramp?: boolean;
 }
 
 export interface Place {

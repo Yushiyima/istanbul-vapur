@@ -7,7 +7,7 @@
  */
 import { MAINT, SHIP_TYPES, TERSANE } from '../config/balance.ts';
 import { haversineM, type LngLat } from '../geo/geo.ts';
-import { pointAlong } from '../nav/route.ts';
+import { makeRoute, pointAlong } from '../nav/route.ts';
 import { pushFeed } from './feed.ts';
 import { evaluatePlacement, pickPierName, type PlacementResult } from './piers.ts';
 import { nextId, random } from './state.ts';
@@ -226,7 +226,7 @@ export function shipLocation(state: GameState, world: World, ship: Ship): LngLat
   if (ship.pierId) return pierById(state, ship.pierId)?.dock ?? null;
   const line = state.lines.find((l) => l.id === ship.lineId);
   if ((ship.status === 'transit' || ship.status === 'toYard') && ship.transit) {
-    return ship.transit[0] ?? null;
+    return pointAlong(makeRoute(ship.transit), ship.dist).p;
   }
   if (line && ship.status === 'sailing') {
     const r = legRoute(world, state, line, ship.leg);

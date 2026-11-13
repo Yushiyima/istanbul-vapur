@@ -20,6 +20,8 @@ import {
   setInterval_,
   setNight,
   upgradeBerths,
+  buildRamp,
+  updateLinePiers,
 } from './sim/network.ts';
 import { warmTraffic } from './sim/traffic.ts';
 import { buildYard, emptyCounters, ensureDefaultYard, previewYard, upgradeYardCapacity, upgradeYardSlots, yardById } from './sim/yards.ts';
@@ -45,6 +47,8 @@ export class Game {
   speedIndex = 1;
   /** Çizilmekte olan hattın iskeleleri. */
   draft: string[] = [];
+  /** Taslak mevcut bir hattı düzenliyorsa onun kimliği. */
+  editingLineId: string | null = null;
   selectedLineId: string | null = null;
   /** Arayüz bağlar: tersaneyi haritada göster. */
   focusYard?: (id: string) => void;
@@ -254,7 +258,10 @@ export class Game {
   setTool(t: Tool): void {
     if (t === this.tool) return;
     this.tool = t;
-    if (t !== 'line') this.draft = [];
+    if (t !== 'line') {
+      this.draft = [];
+      this.editingLineId = null;
+    }
     devLog('game', `araç: ${t}`);
     this.changed();
   }
@@ -316,6 +323,13 @@ export class Game {
     this.changed();
   }
 
+  buildRamp(id: string): void {
+    const r = buildRamp(this.state, id);
+    this.toast(r.ok ? 'Araç rampası kuruldu: arabalı vapur yanaşabilir.' : r.message, r.ok ? 'ok' : 'error');
+    devLog('game', `rampa ${id}: ${r.ok ? 'kuruldu' : r.message} · kasa ${this.money()}`);
+    this.changed();
+  }
+
   upgradeBerths(id: string): void {
     const r = upgradeBerths(this.state, id);
     devLog('game', `yanaşma yeri ${id}: ${r.ok ? `${r.value} oldu` : r.message} · kasa ${this.money()}`);
@@ -352,15 +366,47 @@ export class Game {
 
   /** Hat aracıyla iskeleye tıklandı. */
   clickPierForLine(id: string): void {
-    if (this.draft[this.draft.length - 1] === id) {
+    // Son iskeleye tekrar tıklamak bitirir; taslaktaki başka bir iskeleye tıklamak onu çıkarır.
+    if (this.draft[this.draft.length - 1] === id && !this.editingLineId) {
       this.finishDraft();
       return;
     }
     if (this.draft.includes(id)) {
-      this.toast('Bu iskele hatta zaten var. Bitirmek için son iskeleye tekrar tıkla.', 'error');
+      this.draft = this.draft.filter((x) => x !== id);
+      this.changed();
       return;
     }
-    this.draft.push(id);
+    if (this.editingLineId && this.draft.length >= 2) this.draft.splice(this.bestInsertIndex(id), 0, id);
+    else this.draft.push(id);
+    this.changed();
+  }
+
+  /** Düzenlemede yeni iskeleyi, toplam mesafeyi en az artıran yere koy. */
+  private bestInsertIndex(id: string): number {
+    const at = (pid: string) => this.state.piers.find((p) => p.id === pid)!.coast;
+    const p = at(id);
+    const d = (a: LngLat, b: LngLat) => Math.hypot((a[0] - b[0]) * Math.cos((a[1] * Math.PI) / 180), a[1] - b[1]);
+    let best = this.draft.length, bestCost = Infinity;
+    for (let i = 0; i <= this.draft.length; i++) {
+      const prev = i > 0 ? at(this.draft[i - 1]!) : null;
+      const next = i < this.draft.length ? at(this.draft[i]!) : null;
+      const cost = prev && next ? d(prev, p) + d(p, next) - d(prev, next) : prev ? d(prev, p) : d(p, next!);
+      if (cost < bestCost) {
+        bestCost = cost;
+        best = i;
+      }
+    }
+    return best;
+  }
+
+  editLine(id: string): void {
+    const line = this.state.lines.find((l) => l.id === id);
+    if (!line) return;
+    this.tool = 'line';
+    this.editingLineId = id;
+    this.draft = [...line.pierIds];
+    this.selectedLineId = id;
+    devLog('game', `hat düzenleniyor "${line.name}"`);
     this.changed();
   }
 
@@ -371,6 +417,7 @@ export class Game {
 
   cancelDraft(): void {
     this.draft = [];
+    this.editingLineId = null;
     this.changed();
   }
 
@@ -380,6 +427,20 @@ export class Game {
       return;
     }
     const t0 = performance.now();
+    if (this.editingLineId) {
+      const u = updateLinePiers(this.state, this.world, this.editingLineId, this.draft);
+      if (!u.ok) {
+        this.toast(u.message, 'error');
+        return;
+      }
+      this.toast(`${u.value.name} hattı güncellendi; gemiler yeni terminallere gidiyor.`, 'ok');
+      devLog('game', `hat güncellendi "${u.value.name}" (${u.value.pierIds.length} iskele)`);
+      this.draft = [];
+      this.editingLineId = null;
+      this.tool = 'pan';
+      this.changed();
+      return;
+    }
     const r = createLine(this.state, this.world, this.draft);
     if (!r.ok) {
       this.toast(r.message, 'error');

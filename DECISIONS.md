@@ -94,3 +94,9 @@ Belirsiz tasarım kararları ve gerekçeleri, her biri bir satır.
 - **Kaçınma:** vapur her dakika önündeki noktaya (bir dakikalık yol, en az 60 m) ve trafik gemisinin bir dakika sonraki konumuna bakıyor. Güvenlik mesafesi içindeyse duruyor, 1,8 katına kadar %40 hızla gidiyor. Çizimde gemiden uzak tarafa en fazla 140 m sapıyor (yumuşak geçişle). Sadece hat seferlerinde; tersane transitleri kaçınmıyor.
 - **Eski tanker olayı** kaldırıldı: artık kalkışı engelleyen bir olay yok, etkisi seyirde. Bekleme dakikaları günlük istatistikte (`yieldMinutes`), üst barda "Boğaz: N gemi · M vapur yol veriyor".
 - **Ayar:** menüden Boğaz trafiği kapatılabiliyor. Tarife testleri trafiği kapatıp çalışıyor.
+
+## Arabalı vapur, hat düzenleme, reddedilen yolcu
+
+- **Arabalı vapur** sadece tüm iskelelerinde araç rampası olan hatta çalışıyor. Rampalı tarihi iskeleler: Eminönü (Sirkeci), Kabataş, Üsküdar, Haydarpaşa (Harem). Diğer iskelelere popup'tan rampa kuruluyor (700 bin ₺). Araç geliri: Avrupa↔Anadolu bacağındaki her kalkışta 40 araç × doluluk (zirve %90, ara %55, gece %30) × 180 ₺.
+- **Hat düzenleme:** kartta "Düzenle" → taslak mevcut iskelelerle açılıyor. Taslaktaki iskeleye tıklamak onu çıkarıyor; yeni iskele toplam mesafeyi en az artıran yere ekleniyor. "Hattı güncelle"de rotalar doğrulanıyor, hattaki gemiler bulundukları yerden yeni terminallere gidiyor. Seyirdeki yolcular ve hattın bekleyenleri düşüyor (talep yeniden üretiliyor). Bakımdaki gemiler bakım bitince yeni hatta dönüyor.
+- **Reddedilen yolcu** artık grup başına bir kez sayılıyor. Reddedilmiş gruba yeni gelen eklenmiyor, ayrı grup açılıyor. Memnuniyetteki kalabalık puanı eskisi kadar sert değil.

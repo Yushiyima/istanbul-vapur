@@ -135,6 +135,11 @@ export const ECON = {
   maxBerths: 4,
   pierMaintPerDay: 6_000,
   ticket: 20,
+  /** Arabalı vapurda araç başına bilet; araç rampası kurma bedeli. */
+  vehicleTicket: 180,
+  rampCost: 700_000,
+  /** Arabalı vapurda araç doluluğu (karşıya geçen bacakta). */
+  vehicleFill: { peak: 0.9, offpeak: 0.55, night: 0.3 },
   /** Aktarmada ikinci biniş indirimli. */
   transferTicket: 8,
 } as const;

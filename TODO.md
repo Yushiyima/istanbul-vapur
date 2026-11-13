@@ -5,10 +5,10 @@ Açık işler. Bitince `[x]` yap ya da sil; tasarım kararıysa `DECISIONS.md`'y
 ## Açık
 
 ### CLAUDE.md'de olup eksik kalanlar
-- [ ] **Arabalı vapur:** sadece belirli iskelelerde çalışsın (ör. Eminönü/Harem, Kabataş/Üsküdar,
+- [x] **Arabalı vapur:** sadece belirli iskelelerde çalışsın (ör. Eminönü/Harem, Kabataş/Üsküdar,
   Eskihisar benzeri rampalı iskeleler) ve araç geliri getirsin. Şu an tip olarak var ama farkı
   sadece kapasite/hız.
-- [ ] **Hat düzenleme:** hatta iskele ekle/çıkar, sıra değiştir. Şu an kapatıp yeniden açmak gerekiyor.
+- [x] **Hat düzenleme:** hatta iskele ekle/çıkar, sıra değiştir. Şu an kapatıp yeniden açmak gerekiyor.
 
 ### Kullanıcı istekleri (2026-11-14)
 - [x] **Dalgakıranlar engel olsun.** Kadıköy'e giden gemiler önündeki dalgakıranın içinden geçiyor.
@@ -34,7 +34,7 @@ Açık işler. Bitince `[x]` yap ya da sil; tasarım kararıysa `DECISIONS.md`'y
   iskele çiftleri arası potansiyel yolcu, karşılanan/karşılanmayan).
 
 ### Oynanış ve denge
-- [ ] **Reddedilen yolcu çift sayılıyor:** aynı grup her kalkışta yeniden "reddedilen" sayılıyor;
+- [x] **Reddedilen yolcu çift sayılıyor:** aynı grup her kalkışta yeniden "reddedilen" sayılıyor;
   istatistik şişiyor, memnuniyetteki kalabalık puanı sert. Grup başına bir kez saymak daha doğru.
 - [x] **Tur süresi akıntısız:** gereken gemi hesabı Boğaz akıntısını ve sisi hesaba katmıyor.
 - [ ] **Yıl uzunluğu:** 12 oyun günü = 1 yıl (bir gün bir ay). Oynanınca kısa/uzun geliyorsa ayarla.

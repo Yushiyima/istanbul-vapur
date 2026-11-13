@@ -44,6 +44,9 @@ export function createPanel(root: HTMLElement, game: Game): { render(): void; re
         game.selectedLineId = game.selectedLineId === id ? null : id;
         game.changed();
         break;
+      case 'line-edit':
+        game.editLine(id);
+        break;
       case 'line-delete':
         if (confirm('Hat kapatılsın mı? Gemiler yarı fiyatına satılır.')) game.deleteLine(id);
         break;
@@ -98,7 +101,7 @@ export function createPanel(root: HTMLElement, game: Game): { render(): void; re
           </div>
           ${ships < need ? `<p class="warn-text">Bu aralığı tutturmak için en az ${need} gemi gerekli; seferler kaçacak.</p>` : ''}
           <div class="line-live" data-live-line="${line.id}"></div>
-          <button class="link danger-link" data-action="line-delete" data-line="${line.id}">Hattı kapat</button>
+          <div class="row"><button class="link" data-action="line-edit" data-line="${line.id}">✎ Düzenle</button><button class="link danger-link" data-action="line-delete" data-line="${line.id}">Hattı kapat</button></div>
         </div>`;
       })
       .join('');
@@ -114,11 +117,11 @@ export function createPanel(root: HTMLElement, game: Game): { render(): void; re
           ? `<div class="draft">
               <div class="draft-list">${draftNames.length ? draftNames.map((n, i) => `<span>${i + 1}. ${escapeHtml(n)}</span>`).join('') : '<em>İlk iskeleyi seç…</em>'}</div>
               <div class="row">
-                <button data-action="draft-finish" ${game.draft.length < 2 ? 'disabled' : ''}>Hattı aç <kbd>Enter</kbd></button>
+                <button data-action="draft-finish" ${game.draft.length < 2 ? 'disabled' : ''}>${game.editingLineId ? 'Hattı güncelle' : 'Hattı aç'} <kbd>Enter</kbd></button>
                 <button data-action="draft-undo" ${game.draft.length ? '' : 'disabled'}>Geri al</button>
                 <button data-action="draft-cancel">İptal</button>
               </div>
-              <p class="small">Yeni hatta 1 vapur tersaneden yola çıkar (${fmtMoney(SHIP_TYPES.vapur.price)}).</p>
+              <p class="small">${game.editingLineId ? 'Düzenleme: yeni iskeleye tıkla (en uygun yere eklenir), listedeki iskeleye tıkla (çıkarılır). Gemiler yeni terminallere gider.' : `Yeni hatta 1 vapur tersaneden yola çıkar (${fmtMoney(SHIP_TYPES.vapur.price)}). Taslaktaki bir iskeleye tıklarsan çıkarılır.`}</p>
             </div>`
           : ''
       }

@@ -6,7 +6,7 @@ import { haversineM, type LngLat } from '../geo/geo.ts';
 import { landComponentAt } from '../nav/grid.ts';
 import { routeTimeFactor } from './events.ts';
 import { catchmentOf, computeCatchment } from './catchment.ts';
-import { ensureDefaultYard, fleetCapacity, nearestYard, newShipFields, pickTerminalLeg, returnToLine } from './yards.ts';
+import { ensureDefaultYard, fleetCapacity, nearestYard, newShipFields, pickTerminalLeg, returnToLine, shipLocation } from './yards.ts';
 import { nextId } from './state.ts';
 import type { GameState, Line, Pier, Ship, ShipTypeId } from './types.ts';
 import { legCount, legEnds, legRoute, pierById, sideOfComp, type World } from './world.ts';
@@ -41,6 +41,7 @@ export function addPier(
     dock: data.dock,
     ...(data.historicId ? { historicId: data.historicId } : {}),
     berths: PIER.initialBerths,
+    ...(data.historicId && world.data.historic.find((h) => h.id === data.historicId)?.ramp ? { ramp: true } : {}),
     side: sideOfComp(world, comp),
     comp,
     builtAt: state.minute,
@@ -69,6 +70,17 @@ export function removePier(state: GameState, world: World, pierId: string): stri
   world.routes.forget(pierId);
   world.catchments.delete(pierId);
   return removedLines.map((l) => l.name);
+}
+
+export function buildRamp(state: GameState, pierId: string): Result<true> {
+  const p = pierById(state, pierId);
+  if (!p) return fail('İskele yok.');
+  if (p.ramp) return fail('Bu iskelede zaten araç rampası var.');
+  if (state.money < ECON.rampCost) return fail(`Yetersiz bütçe: ${fmtMoney(ECON.rampCost)}.`);
+  state.money -= ECON.rampCost;
+  state.today.costs += ECON.rampCost;
+  p.ramp = true;
+  return { ok: true, value: true };
 }
 
 export function upgradeBerths(state: GameState, pierId: string): Result<number> {
@@ -107,6 +119,52 @@ export function createLine(state: GameState, world: World, pierIds: string[], sh
   }
   state.lines.push(line);
   state.lineStats[line.id] = { boardings: 0, revenue: 0, missed: 0, trips: 0, load: 0 };
+  return { ok: true, value: line };
+}
+
+/**
+ * Hattın iskelelerini değiştirir. Hattaki gemiler bulundukları yerden yeni terminallere gider;
+ * seyirdeki gemilerin yolcuları ve hattın bekleyen yolcuları düşer (yeniden üretilir).
+ */
+export function updateLinePiers(state: GameState, world: World, lineId: string, pierIds: string[]): Result<Line> {
+  const line = state.lines.find((l) => l.id === lineId);
+  if (!line) return fail('Hat yok.');
+  if (pierIds.length < 2) return fail('Hat için en az iki iskele seç.');
+  if (new Set(pierIds).size !== pierIds.length) return fail('Bir hatta aynı iskele iki kez olamaz.');
+  const piers = pierIds.map((id) => pierById(state, id));
+  if (piers.some((p) => !p)) return fail('Hattaki bir iskele bulunamadı.');
+  if (line.shipType === 'arabali' && piers.some((p) => !p!.ramp)) return fail('Arabalı vapur hattında tüm iskelelerde araç rampası olmalı.');
+  const trial: Line = { ...line, pierIds: [...pierIds] };
+  for (let leg = 0; leg < legCount(trial) / 2; leg++) {
+    if (!legRoute(world, state, trial, leg)) {
+      const { from, to } = legEnds(trial, leg);
+      return fail(`${piers[from]!.name} → ${piers[to]!.name} arasında su yolu bulunamadı.`);
+    }
+  }
+  // Gemilerin konumu eski hatta göre hesaplanmalı: önce konumları al, sonra hattı değiştir.
+  const ships = shipsOnLine(state, lineId).filter((s) => s.status !== 'toYard' && s.status !== 'maintenance');
+  const locations = ships.map((s) => shipLocation(state, world, s));
+  line.pierIds = [...pierIds];
+  line.name = `${piers[0]!.name} – ${piers[piers.length - 1]!.name}`;
+  for (const groups of Object.values(state.waiting)) {
+    for (let i = groups.length - 1; i >= 0; i--) if (groups[i]!.lineId === lineId) groups.splice(i, 1);
+  }
+  const n = pierIds.length;
+  ships.forEach((ship, i) => {
+    const lost = ship.onboard.reduce((s, g) => s + g.count, 0);
+    state.today.gaveUp += lost;
+    ship.onboard = [];
+    const leg = pickTerminalLeg(state, line, ship.id);
+    const terminal = pierById(state, pierIds[leg === 0 ? 0 : n - 1]!)!;
+    const from = locations[i] ?? terminal.dock;
+    const route = world.routes.get(`at:${from[0].toFixed(5)},${from[1].toFixed(5)}`, from, terminal.id, terminal.dock);
+    ship.status = 'transit';
+    ship.transit = route ? route.points : [from, terminal.dock];
+    ship.transitLeg = leg;
+    ship.dist = ship.prevDist = 0;
+    ship.pierId = null;
+    // Geçici olarak "transit" sayılsın ki sonraki gemi diğer terminale dağılsın.
+  });
   return { ok: true, value: line };
 }
 
@@ -214,6 +272,10 @@ export function changeShipType(state: GameState, world: World, lineId: string, t
   const line = state.lines.find((l) => l.id === lineId);
   if (!line) return fail('Hat yok.');
   if (line.shipType === type) return { ok: true, value: 0 };
+  if (type === 'arabali') {
+    const noRamp = line.pierIds.map((id) => pierById(state, id)).filter((p) => p && !p.ramp);
+    if (noRamp.length) return fail(`Arabalı vapur için tüm iskelelerde araç rampası gerekli: ${noRamp.map((p) => p!.name).join(', ')}.`);
+  }
   const count = shipsOnLine(state, lineId).length;
   const refund = shipsOnLine(state, lineId).reduce((s, sh) => s + SHIP_TYPES[sh.type].price * TERSANE.resaleRatio, 0);
   const cost = SHIP_TYPES[type].price * count;

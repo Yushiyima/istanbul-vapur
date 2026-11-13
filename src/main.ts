@@ -1,7 +1,7 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './style.css';
 import { Popup, type MapLayerMouseEvent, type MapMouseEvent, type Map as MapLibreMap } from 'maplibre-gl';
-import { MAINT, PIER, SHIP_TYPES, TERSANE, TIME, TRAFFIC } from './config/balance.ts';
+import { ECON, MAINT, PIER, SHIP_TYPES, TERSANE, TIME, TRAFFIC } from './config/balance.ts';
 import { loadCityPack } from './cityPack.ts';
 import { devLog, installDevLogBridge } from './devlog.ts';
 import { Game } from './game.ts';
@@ -218,12 +218,18 @@ async function main(): Promise<void> {
       <p>Yanaşma yeri: ${berthsInUse(state, pier.id)} / ${pier.berths} dolu · Bekleyen: ${waiting.toLocaleString('tr-TR')} yolcu</p>
       <p>Kapsama (${PIER.coverageRadiusM} m): ${Math.round(c.pop).toLocaleString('tr-TR')} kişi · çekim ${Math.round(c.att).toLocaleString('tr-TR')}</p>
       <p>Hatlar: ${lines.length ? lines.map((l) => `<span class="ldot" style="background:${l.color}"></span>${escapeHtml(l.name)}`).join(', ') : '—'}</p>
+      <p class="small">${pier.ramp ? '🚗 Araç rampası var: arabalı vapur yanaşabilir.' : `Araç rampası yok (arabalı vapur için gerekli).`}</p>
       <div class="row">
         <button type="button" data-a="berth">+1 yanaşma yeri</button>
+        ${pier.ramp ? '' : `<button type="button" data-a="ramp" title="${fmtMoney(ECON.rampCost)}">Araç rampası</button>`}
         <button type="button" class="danger" data-a="delete">Sil</button>
       </div>`;
     el.querySelector('[data-a=berth]')!.addEventListener('click', () => {
       game.upgradeBerths(pier.id);
+      openPierPopup(pier);
+    });
+    el.querySelector('[data-a=ramp]')?.addEventListener('click', () => {
+      game.buildRamp(pier.id);
       openPierPopup(pier);
     });
     el.querySelector('[data-a=delete]')!.addEventListener('click', () => {

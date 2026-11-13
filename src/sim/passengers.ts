@@ -231,7 +231,8 @@ export function odTable(state: GameState, world: World): OdCache {
 
 function addWaiting(state: GameState, pierId: string, g: Omit<WaitGroup, 'since'> & { since: number }): void {
   const list = (state.waiting[pierId] ??= []);
-  const same = list.find((x) => x.lineId === g.lineId && x.alight === g.alight && x.dest === g.dest && !!x.xfer === !!g.xfer);
+  // Daha önce reddedilmiş gruba yeni gelen eklenmez: reddedilme her yolcu için bir kez sayılsın.
+  const same = list.find((x) => x.lineId === g.lineId && x.alight === g.alight && x.dest === g.dest && !!x.xfer === !!g.xfer && !x.denied);
   if (same) {
     const total = same.count + g.count;
     same.since = (same.since * same.count + g.since * g.count) / total;
@@ -284,6 +285,15 @@ function aheadOf(line: Line, leg: number): Set<string> {
   return out;
 }
 
+/** Bu kalkışta taşınan araç sayısı (sadece arabalı vapur, Avrupa↔Anadolu bacağı). */
+export function vehicleLoad(state: GameState, ship: Ship, line: Line): number {
+  if (ship.type !== 'arabali') return 0;
+  const { from, to } = legEnds(line, ship.leg);
+  const a = state.piers.find((p) => p.id === line.pierIds[from]), b = state.piers.find((p) => p.id === line.pierIds[to]);
+  if (!a || !b || a.side === b.side || a.side === 'ada' || b.side === 'ada') return 0;
+  return Math.round(SHIP_TYPES.arabali.vehicles * ECON.vehicleFill[periodAt(state.minute)]);
+}
+
 export function boardAt(state: GameState, _world: World, ship: Ship, line: Line, pier: Pier): void {
   state.hourAcc.departures += 1;
   const cap = SHIP_TYPES[ship.type].capacity;
@@ -298,7 +308,8 @@ export function boardAt(state: GameState, _world: World, ship: Ship, line: Line,
   for (const g of eligible) {
     const free = cap - onboard;
     if (free <= 0) {
-      denied += g.count;
+      if (!g.denied) denied += g.count;
+      g.denied = true;
       continue;
     }
     const n = Math.min(free, g.count);
@@ -321,9 +332,21 @@ export function boardAt(state: GameState, _world: World, ship: Ship, line: Line,
     if (on) on.count += n;
     else ship.onboard.push({ alight: g.alight, dest: g.dest, count: n, startedAt: g.startedAt });
     g.count -= n;
-    if (g.count > 0) denied += g.count;
+    if (g.count > 0) {
+      if (!g.denied) denied += g.count;
+      g.denied = true;
+    }
   }
   state.waiting[pier.id] = list.filter((g) => g.count > 0);
+  // Arabalı vapur: karşıya geçen bacakta araç geliri.
+  const vehicles = vehicleLoad(state, ship, line);
+  if (vehicles > 0) {
+    const vRev = vehicles * ECON.vehicleTicket;
+    state.money += vRev;
+    state.today.revenue += vRev;
+    state.today.vehicles = (state.today.vehicles ?? 0) + vehicles;
+    if (ls) ls.revenue += vRev;
+  }
   const boardedNow = onboard - before;
   const fareNow = state.today.revenue - revBefore;
   for (const c of [ship.today, ship.total]) {
