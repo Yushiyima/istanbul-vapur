@@ -75,6 +75,19 @@ export interface WaitGroup {
   /** Ağırlıklı ortalama bekleme başlangıcı. */
   since: number;
   startedAt: number;
+  /** Aktarma yapan yolcu (indirimli bilet). */
+  xfer?: boolean;
+}
+
+/** Saatlik memnuniyet hesabı için biriktiriciler. */
+export interface HourAcc {
+  waitSum: number;
+  waitCount: number;
+  boardings: number;
+  denied: number;
+  departures: number;
+  missed: number;
+  gaveUp: number;
 }
 
 export interface DayStats {
@@ -116,7 +129,14 @@ export type WeatherKind = 'acik' | 'lodos' | 'poyraz' | 'sis';
 
 export interface Weather {
   kind: WeatherKind;
+  from: number;
   until: number;
+}
+
+export interface Notice {
+  at: number;
+  kind: 'info' | 'ok' | 'error';
+  text: string;
 }
 
 export interface Tanker {
@@ -146,6 +166,7 @@ export interface GameState {
   /** OD talebi küsurat birikimi: "i>j" → yolcu. */
   demandCarry: Record<string, number>;
   satisfaction: number;
+  hourAcc: HourAcc;
   today: DayStats;
   yesterday: DayStats | null;
   year: { satisfactionSum: number; satisfactionDays: number; revenue: number; costs: number; boardings: number };
@@ -154,6 +175,8 @@ export interface GameState {
   weather: Weather;
   tanker: Tanker | null;
   feed: FeedPost[];
+  /** Arayüzün toast olarak göstereceği bildirimler (gösterilince boşaltılır). */
+  notices: Notice[];
   tersaneCapacity: number;
   /** Yıl sonu özeti bekliyor mu (arayüz gösterince temizler). */
   pendingYearSummary: null | { year: number; revenue: number; costs: number; boardings: number; satisfaction: number; rewards: number };

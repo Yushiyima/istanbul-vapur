@@ -75,6 +75,8 @@ export interface World {
   cellComp: Int32Array | null;
   /** İskele havzası önbelleği: pierId → hücre indeksleri ve ağırlıklar. */
   catchments: Map<string, { cells: number[]; weights: number[]; pop: number; att: number }>;
+  /** Talep tablosu önbelleği (ağ değişince yeniden kurulur, bkz. passengers.ts). */
+  od: { sig: string; pairs: unknown[]; byKey: Map<string, unknown> } | null;
 }
 
 export function createWorld(data: CityData): World {
@@ -117,6 +119,7 @@ export function createWorld(data: CityData): World {
     warnings,
     cellComp,
     catchments: new Map(),
+    od: null,
   };
 }
 

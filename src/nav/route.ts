@@ -185,7 +185,10 @@ export function findWaterRoute(g: WaterGrid, from: LngLat, to: LngLat): Route | 
 /** İskele çifti başına rota önbelleği (a→b bulunduysa b→a ters çevrilerek verilir). */
 export class RouteCache {
   private cache = new Map<string, Route | null>();
-  constructor(private grid: WaterGrid) {}
+  private grid: WaterGrid;
+  constructor(grid: WaterGrid) {
+    this.grid = grid;
+  }
 
   get(aId: string, a: LngLat, bId: string, b: LngLat): Route | null {
     const key = `${aId}>${bId}`;

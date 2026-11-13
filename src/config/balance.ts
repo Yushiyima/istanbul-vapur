@@ -100,9 +100,9 @@ export const ECON = {
   berthUpgradeCost: 450_000,
   maxBerths: 4,
   pierMaintPerDay: 6_000,
-  ticket: 30,
+  ticket: 20,
   /** Aktarmada ikinci biniş indirimli. */
-  transferTicket: 12,
+  transferTicket: 8,
 } as const;
 
 // ---------------------------------------------------------------- talep
@@ -111,7 +111,7 @@ export const DEMAND = {
   /** Havzada uzak hücrenin ağırlığı: 1 - walkDecay × (d / R). */
   walkDecay: 0.5,
   /** Yer çekimi modeli: yolcu/dk = k × pop_i × att_j / d^γ × saat profili × … */
-  k: 2.4e-7,
+  k: 1.1e-7,
   gamma: 1.1,
   minDistKm: 1.5,
   /** Aynı yakadaki iskeleler arası talep çarpanı (Boğaz içi hatlar). */
@@ -175,4 +175,77 @@ export const SATISFACTION = {
   demandMulMax: 1.25,
   historicBonusPerPier: 0.6,
   historicBonusMax: 5,
+} as const;
+
+// ---------------------------------------------------------------- hedefler
+
+export const GOALS = {
+  connectSides: { title: 'İki yakayı bağla', desc: 'Avrupa ve Anadolu yakalarını bir hatla bağla.', reward: 1_000_000 },
+  connectSides3: { title: 'Üç ayrı geçiş', desc: 'İki yakayı birbirinden en az 1,5 km uzak 3 ayrı yerden bağla.', reward: 2_500_000 },
+  adalar: { title: 'Adalar’a ulaş', desc: 'Bir hattı adalardan birine uzat.', reward: 1_500_000 },
+  halic: { title: 'Haliç hattı', desc: 'Haliç’te en az iki iskeleye uğrayan bir hat aç.', reward: 1_000_000 },
+  sariyer: { title: 'Boğaz’ı Sarıyer’e bağla', desc: 'Tarihi yarımada / Beşiktaş kıyısından Sarıyer’e (41,16° K) hatlarla ulaşılabilsin.', reward: 2_000_000 },
+  historic5: { title: '5 tarihi iskele', desc: 'Başlangıç dışında 5 tarihi iskeleyi yeniden aç.', reward: 1_500_000 },
+  rail5: { title: 'Raylı aktarma', desc: 'Hatlı 5 iskelede metro / Marmaray / banliyö aktarması (400 m) olsun.', reward: 2_000_000 },
+  coverage10: { title: 'Nüfusun %10’u', desc: 'Hatlı iskeleler nüfusun %10’unu kapsasın.', reward: 1_500_000 },
+  coverage25: { title: 'Nüfusun %25’i', desc: 'Hatlı iskeleler nüfusun %25’ini kapsasın.', reward: 4_000_000 },
+  satisfaction95: { title: '%95 memnuniyet', desc: 'Bir yılı ortalama %95 memnuniyetle kapat.', reward: 5_000_000 },
+  night: { title: 'Gece seferi', desc: 'Bir hatta gece seferi başlat.', reward: 800_000 },
+} as const;
+
+// ---------------------------------------------------------------- olaylar
+
+export const EVENTS = {
+  /** Aya göre günlük hava olasılıkları (Ocak … Aralık). Lodos kışın sık. */
+  weatherByMonth: [
+    { lodos: 0.3, poyraz: 0.15, sis: 0.1 },
+    { lodos: 0.28, poyraz: 0.15, sis: 0.12 },
+    { lodos: 0.22, poyraz: 0.12, sis: 0.18 },
+    { lodos: 0.12, poyraz: 0.08, sis: 0.2 },
+    { lodos: 0.06, poyraz: 0.06, sis: 0.12 },
+    { lodos: 0.04, poyraz: 0.1, sis: 0.05 },
+    { lodos: 0.03, poyraz: 0.14, sis: 0.03 },
+    { lodos: 0.03, poyraz: 0.14, sis: 0.03 },
+    { lodos: 0.06, poyraz: 0.1, sis: 0.1 },
+    { lodos: 0.14, poyraz: 0.1, sis: 0.2 },
+    { lodos: 0.24, poyraz: 0.12, sis: 0.2 },
+    { lodos: 0.3, poyraz: 0.15, sis: 0.12 },
+  ],
+  duration: {
+    lodos: { startHour: [3, 14], hours: [5, 12] },
+    poyraz: { startHour: [3, 14], hours: [4, 10] },
+    sis: { startHour: [4, 7], hours: [2, 5] },
+  },
+  /** Rotanın bu oranı açık denizdeyse lodos/poyrazda sefer iptal. */
+  exposureThreshold: 0.25,
+  fogSpeedFactor: 0.6,
+  /** Boğaz akıntısı: kuzeye giden gemi bu oranda yavaş, güneye giden hızlı. */
+  currentStrength: 0.15,
+  tankerChancePerHour: 0.22,
+  tankerMinutes: [12, 28],
+  tankerHours: [6, 22],
+} as const;
+
+// ---------------------------------------------------------------- Peron
+
+export const FEED = {
+  maxPosts: 40,
+  crowdedMin: 150,
+  longWaitMin: 22,
+  gullChance: 0.12,
+  happyChance: 0.15,
+} as const;
+
+// ---------------------------------------------------------------- ses
+
+export const SOUND = {
+  /** Aynı anda en fazla bu sıklıkta düdük (ms). */
+  hornMinGapMs: 2500,
+  volume: 0.25,
+} as const;
+
+export const GOAL_RULES = {
+  crossingSeparationM: 1500,
+  sariyerLat: 41.16,
+  southLat: 41.045,
 } as const;

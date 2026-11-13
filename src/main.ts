@@ -8,6 +8,7 @@ import { Game } from './game.ts';
 import type { LngLat } from './geo/geo.ts';
 import { createMap, LAYER, renderDraft, renderGhost, renderNetwork, renderShips, setNoBuildEmphasis } from './map/mapView.ts';
 import { catchmentOf } from './sim/catchment.ts';
+import { fmtMoney } from './sim/network.ts';
 import { berthsInUse, shipPose } from './sim/tick.ts';
 import type { Pier, Ship } from './sim/types.ts';
 import { escapeHtml } from './ui/html.ts';
@@ -73,6 +74,7 @@ async function main(): Promise<void> {
     if (game.tool === 'pier') {
       const r = game.previewPlacement(cursor);
       renderGhost(map, r.coast ? { click: cursor, coast: r.coast, ok: r.ok } : null);
+      showTip(ev.point, r.ok ? `≈ ${fmtMoney(game.placementCost(r.coast))}` : r.message, r.ok);
     } else if (game.tool === 'line' && game.draft.length) {
       renderDraft(map, game, cursor);
     }
@@ -80,6 +82,26 @@ async function main(): Promise<void> {
   map.getCanvas().addEventListener('mouseleave', () => {
     cursor = null;
     renderGhost(map, null);
+    tip.hidden = true;
+  });
+
+  // İskele aracında imleç yanında maliyet / ret sebebi.
+  const tip = document.createElement('div');
+  tip.className = 'cursor-tip';
+  tip.hidden = true;
+  document.body.append(tip);
+  let lastTipCoast = '';
+  function showTip(pt: { x: number; y: number }, text: string, ok: boolean): void {
+    tip.hidden = false;
+    tip.style.transform = `translate(${pt.x + 16}px, ${pt.y + 14}px)`;
+    if (lastTipCoast !== text) {
+      tip.textContent = text;
+      tip.classList.toggle('bad', !ok);
+      lastTipCoast = text;
+    }
+  }
+  game.onChange(() => {
+    if (game.tool !== 'pier') tip.hidden = true;
   });
 
   const infoPopup = new Popup({ closeButton: true, closeOnClick: true, offset: 14, maxWidth: '290px' });

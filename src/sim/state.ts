@@ -1,8 +1,12 @@
 import { ECON, TERSANE, TIME } from '../config/balance.ts';
-import type { DayStats, GameState } from './types.ts';
+import type { DayStats, GameState, HourAcc } from './types.ts';
 
 export function emptyDay(): DayStats {
   return { boardings: 0, revenue: 0, costs: 0, tripsDone: 0, tripsMissed: 0, denied: 0, gaveUp: 0, waitSum: 0, waitCount: 0, journeys: 0 };
+}
+
+export function emptyHour(): HourAcc {
+  return { waitSum: 0, waitCount: 0, boardings: 0, denied: 0, departures: 0, missed: 0, gaveUp: 0 };
 }
 
 export function createGame(seed: number): GameState {
@@ -19,14 +23,16 @@ export function createGame(seed: number): GameState {
     waiting: {},
     demandCarry: {},
     satisfaction: 75,
+    hourAcc: emptyHour(),
     today: emptyDay(),
     yesterday: null,
     year: { satisfactionSum: 0, satisfactionDays: 0, revenue: 0, costs: 0, boardings: 0 },
     lineStats: {},
     goals: {},
-    weather: { kind: 'acik', until: 0 },
+    weather: { kind: 'acik', from: 0, until: 0 },
     tanker: null,
     feed: [],
+    notices: [],
     tersaneCapacity: TERSANE.capacity,
     pendingYearSummary: null,
   };

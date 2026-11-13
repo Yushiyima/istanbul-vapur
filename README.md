@@ -3,7 +3,7 @@
 Gerçek İstanbul haritası üstünde iskele kurup vapur hattı işlettiğin bir tarayıcı oyunu.
 Tasarım ve yol haritası: [`CLAUDE.md`](CLAUDE.md). Tasarım kararları: [`DECISIONS.md`](DECISIONS.md).
 
-**Durum:** Aşama 2. Su ağı, hat çizme, tarifeli seferler ve gemi hareketi.
+**Durum:** Aşama 3. Talep, ekonomi, memnuniyet.
 
 ## Çalıştırma
 
@@ -41,6 +41,13 @@ veri scriptini çalıştırman gerekmez.
 - **Üst bar:** tarih/saat ve hız (⏸ 1× 2× 4× 8×; **Boşluk** duraklatır, **1–4** hız seçer).
 - İskele başına 2 yanaşma yeri vardır. Doluysa gemi sırada bekler; iskele popup'ından yanaşma yeri eklenebilir.
 
+## Oynanış (Aşama 3)
+
+- Yolcular iskele havzalarındaki nüfus ve çekimden üretilir. Vapur, kara yolundan (köprü, tünel, Marmaray) hızlıysa seçilir. Zirve saatlerinde kara yavaşlar.
+- Bilet geliri kasaya girer; yakıt, mürettebat ve iskele bakımı düşer. Üst barda kasa, memnuniyet, bugünkü yolcu, günün net sonucu ve bekleyen yolcu görünür.
+- İskele aracında imleç yanında tahmini maliyet çıkar. Kalabalık iskelelerde etiket bekleyen yolcuyu gösterir.
+- Dolu vapura binemeyen ya da çok bekleyen yolcu memnuniyeti düşürür; memnuniyet talebi etkiler.
+
 ## Veri scripti
 
 ```bash
@@ -64,6 +71,18 @@ npm run data:check-piers                 # tarihi iskelelerin kıyıya uzaklığ
 
 Script idempotenttir. Aynı ham veriyle her çalıştırmada aynı çıktıyı üretir.
 
+### Nüfus, çekim, istasyonlar
+
+```bash
+node scripts/build-cells.mjs            # GHS-POP tile'ı yoksa indirir (~120 MB), Overpass önbelleğini kullanır
+node scripts/build-cells.mjs --refresh  # Overpass sorgularını yeniler
+node scripts/simulate.ts 2 [--big]      # headless denge simülasyonu (N gün)
+```
+
+- GHS-POP R2023A (E2025, 3″) `data/raw/ghs/` altına iner, bbox penceresi okunup H3 r9 hücrelerine toplanır.
+- Çekim: nüfus + OSM yerleri (ofis, okul, hastane, dükkân, müze …).
+- Çıktı: `data/cells.json` (h, lat, lng, pop, att), `data/stations.json`.
+
 ## Klasörler
 
 ```
@@ -79,4 +98,5 @@ src/ui/        araç çubuğu, toast
 ## Atıf
 
 - Harita karoları: [OpenFreeMap](https://openfreemap.org), [© OpenMapTiles](https://www.openmaptiles.org/)
-- Kıyı, su ve yer adı verisi: [© OpenStreetMap katkıcıları](https://www.openstreetmap.org/copyright) (ODbL)
+- Kıyı, su, yer adı, çekim ve istasyon verisi: [© OpenStreetMap katkıcıları](https://www.openstreetmap.org/copyright) (ODbL)
+- Nüfus: GHS-POP R2023A, © Avrupa Komisyonu, Ortak Araştırma Merkezi (JRC)

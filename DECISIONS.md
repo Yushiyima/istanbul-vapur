@@ -41,3 +41,18 @@ Belirsiz tasarım kararları ve gerekçeleri, her biri bir satır.
 - **Hat düzenleme yok:** hattın iskeleleri sonradan değiştirilemiyor. Kapatıp yeniden açılıyor (basit tutmak için).
 - **Gemi tipi** hat başına tek. Tip değişince mevcut gemiler satılıp aynı sayıda yenisi alınıyor. Arabalı vapurun "sadece belirli iskeleler" kısıtı henüz yok.
 - **Çizim:** seyirdeki gemi rotanın 35 m sağına kaydırılıyor (karşılıklı geçişte üst üste binmesin), yanaşmış gemi iskele işaretinin 70 m açığında.
+
+## Aşama 3
+
+- **Nüfus:** GHS-POP R2023A, E2025 tahmini, 3 açısaniye (~90 m) tile R5_C21. Pikseller merkezlerine göre H3 r9 hücrelerine toplanıyor. Bbox içinde 7,65 milyon kişi, 4.727 hücre.
+- **Çekim:** nüfusun %30'u + OSM yerleri (ofis ×6, okul/üniversite ×25, hastane ×20, resmi/kültür ×10, yeme-içme ×2, dükkân ×2, müze/otel ×12) × 25. Dükkân sorgusu ağır olduğu için 2×3 parçada çekiliyor.
+- **İstasyonlar:** OSM `railway=station` / metro / hafif raylı. Marmaray ağ adından tanınıyor. İskeleye 400 m içinde istasyon varsa çekim ×1,3 (aktarma), Aşama 4'teki hedef için de sayılıyor.
+- **Havza:** 800 m içinde, iskeleyle aynı kara bileşenindeki hücreler; ağırlık 1 − 0,5·(d/R).
+- **Talep:** `k · pop_i · att_j / max(d, 1,5 km)^1,1`; aynı yakada ×0,35; saatlik profil; sabah Anadolu→Avrupa ×1,7 (ters ×0,6), akşam tersi; memnuniyet çarpanı 0,55–1,25.
+- **Mod seçimi:** logit β = 0,09/dk. T_vapur = 2 × 420 m yürüme + yarım aralık bekleme (en fazla 40 dk) + seyir + aktarma cezası 8 dk. T_kara = en iyi köprü/tünel üzerinden yol (zirvede 13 km/sa + 25 dk köprü cezası) ya da Marmaray (istasyona yürüme + 5 dk + 45 km/sa). Adalar arası kara yolu yok, pay = 1.
+- **Rota:** en fazla bir aktarma. Doğrudan hat varsa o, yoksa ortak iskeleden aktarmalı en kısa plan.
+- **Biniş:** kalkışta, en uzun bekleyen önce. Kapasite dolunca kalanlar "reddedilen" sayılıyor (her kalkışta yeniden). 75 dk bekleyen vazgeçiyor.
+- **Ekonomi:** bilet 20 ₺, aktarmalı ikinci biniş 8 ₺. Yakıt kalkışta km başına (vapur 320 ₺/km). Mürettebat günlük (vapur 18 bin), iskele bakımı günlük 6 bin. İskele = 350 bin + havza nüfusu × 6 ₺ (en fazla 1,6 M), tarihi yerde %40 indirim.
+- **Memnuniyet:** saatlik; bekleme (6 dk iyi, 30 dk en kötü) %45, kalabalık (reddedilen + vazgeçen) %30, kaçan sefer %25. Üstel düzeltme 0,85. Tarihi iskele başına +0,6 (en fazla +5).
+- **Kalibrasyon** (`node scripts/simulate.ts`): başlangıç hattı (20 dk, 2 vapur) günde ~40 bin biniş, ~590 bin ₺ net, akşam memnuniyeti ~%92; zirvede dolu, gemi eklemeye teşvik.
+- **Zaman:** 1 oyun günü = 1 ay; 12 gün = 1 yıl. 1× hızda 1 oyun dakikası 0,4 sn.

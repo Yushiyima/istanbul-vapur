@@ -47,7 +47,10 @@ export class Game {
   private waterIndex: WaterIndex;
   private coverageCache = new Map<string, PolygonCoords[]>();
 
-  constructor(readonly pack: CityPack, state?: GameState) {
+  readonly pack: CityPack;
+
+  constructor(pack: CityPack, state?: GameState) {
+    this.pack = pack;
     this.world = createWorld(pack.data);
     for (const w of this.world.warnings) console.warn(w);
     this.waterIndex = buildWaterIndex(pack.data.waterPolygons);

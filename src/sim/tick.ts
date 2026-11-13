@@ -15,7 +15,7 @@ const PASSING_OFFSET_M = 35;
 import { makeRoute, pointAlong } from '../nav/route.ts';
 import { offsetM, type LngLat } from '../geo/geo.ts';
 import { canDepart, speedFactor, updateEvents } from './events.ts';
-import { alightAt, boardAt, generateDemand, updateEconomyAndSatisfaction } from './passengers.ts';
+import { alightAt, boardAt, generateDemand, noteMissed, updateEconomyAndSatisfaction } from './passengers.ts';
 import { inService } from './state.ts';
 import type { GameState, Line, Ship } from './types.ts';
 import { legCount, legEnds, legRoute, pierById, type World } from './world.ts';
@@ -133,6 +133,7 @@ function runTimetable(state: GameState, world: World, line: Line): void {
       depart(state, world, line, ready);
     } else {
       state.today.tripsMissed += 1;
+      noteMissed(state);
       const ls = state.lineStats[line.id];
       if (ls) ls.missed += 1;
     }

@@ -4,7 +4,8 @@
 import { MONTHS, TIME } from '../config/balance.ts';
 import type { Game } from '../game.ts';
 import { fmtMoney } from '../sim/network.ts';
-import { dayIndex, minuteOfDay, monthIndex, yearIndex } from '../sim/state.ts';
+import { waitingCount } from '../sim/passengers.ts';
+import { minuteOfDay, monthIndex, yearIndex } from '../sim/state.ts';
 
 const WEATHER_LABEL: Record<string, string> = { acik: '☀ Açık', lodos: '🌬 Lodos', poyraz: '🌬 Poyraz', sis: '🌫 Sis' };
 const SPEED_LABEL = ['⏸', '1×', '2×', '4×', '8×'];
@@ -32,7 +33,8 @@ export function createTopbar(root: HTMLElement, game: Game): { refresh(): void; 
       </div>
       <div class="tb-group"><span class="tb-label">Kasa</span><span class="tb-money"></span></div>
       <div class="tb-group"><span class="tb-label">Memnuniyet</span><span class="tb-sat"></span></div>
-      <div class="tb-group"><span class="tb-label">Bugün</span><span class="tb-pax"></span></div>
+      <div class="tb-group"><span class="tb-label">Bugün</span><span class="tb-pax"></span><span class="tb-net"></span></div>
+      <div class="tb-group"><span class="tb-label">Bekleyen</span><span class="tb-wait"></span></div>
       <div class="tb-group"><span class="tb-weather"></span></div>`;
     refresh();
   }
@@ -49,8 +51,11 @@ export function createTopbar(root: HTMLElement, game: Game): { refresh(): void; 
     root.querySelector('.tb-money')?.classList.toggle('neg', s.money < 0);
     set('.tb-sat', `%${Math.round(s.satisfaction)}`);
     set('.tb-pax', `${s.today.boardings.toLocaleString('tr-TR')} yolcu`);
+    const net = s.today.revenue - s.today.costs;
+    set('.tb-net', `${net >= 0 ? '+' : '−'}${fmtMoney(Math.abs(net))}`);
+    root.querySelector('.tb-net')?.classList.toggle('neg', net < 0);
+    set('.tb-wait', waitingCount(s).toLocaleString('tr-TR'));
     set('.tb-weather', `${WEATHER_LABEL[s.weather.kind] ?? ''}${s.tanker ? ' · 🚢 Tanker' : ''}`);
-    void dayIndex;
   }
 
   return { refresh, render };
