@@ -10,6 +10,29 @@ Açık işler. Bitince `[x]` yap ya da sil; tasarım kararıysa `DECISIONS.md`'y
   sadece kapasite/hız.
 - [ ] **Hat düzenleme:** hatta iskele ekle/çıkar, sıra değiştir. Şu an kapatıp yeniden açmak gerekiyor.
 
+### Kullanıcı istekleri (2026-11-14)
+- [ ] **Dalgakıranlar engel olsun.** Kadıköy'e giden gemiler önündeki dalgakıranın içinden geçiyor.
+  Neden: OSM'de dalgakıran/mendirek `natural=coastline` değil, `man_made=breakwater|groyne|pier`
+  çizgisi; su poligonu sadece kıyıdan kurulduğu için ızgarada su sayılıyor. Çözüm: veri scriptine
+  bu çizgileri ekle (`data/breakwaters.geojson`), su ızgarasında ~20 m tamponla kara işaretle,
+  rota testine "Kadıköy rotası dalgakıranı kesmez" ekle. (Haydarpaşa mendireği, Yenikapı, Ataköy …)
+- [ ] **Boğaz'da gerçek gemi trafiği.** Şu an tanker sadece "Boğaz'ı kesen kalkışları bekleten"
+  bir olay; vapurlar çalışıyor, rotaları değişmiyor. İstenen: Boğaz boyunca akan transit gemiler
+  (tanker, konteyner, dökme yük, yolcu; farklı boy ve hız), haritada görünsün; vapur bir gemiye
+  fazla yaklaşırsa yavaşlasın / beklesin / rotasını yerel olarak değiştirsin (çarpışmadan kaçınma).
+  Mevcut tanker olayı bu trafiğe dönüşsün.
+- [ ] **Gemi istatistikleri.** Gemiye tıklayınca: taşıdığı yolcu (bugün/toplam), sefer sayısı,
+  gelir, doluluk ortalaması, kat ettiği mesafe, yaşı, bakım durumu.
+- [ ] **Bakım mekaniği.** Gemilerin durumu seyirle (km/saat) azalsın; düştükçe hız düşsün, arıza
+  riski artsın (arızada sefer iptali, çekici/tersaneye dönüş). Bakım tersanede yapılsın: süre ve
+  maliyet, bakımdayken gemi hatta yok. Otomatik bakım eşiği ayarı.
+- [ ] **Tersaneler haritada ve kurulabilir.** Haliç Tersanesi belirgin bir işaretle görünsün;
+  oyuncu kıyıya yeni tersane kurabilsin (maliyet, kapasite, bakım yuvası). Yeni gemi ve bakım
+  en yakın tersaneye gider.
+- [ ] **Yeni veri katmanları:** raylı sistem istasyonları ve aktarma yarıçapları, nüfus yoğunluğu
+  (var, iyileştir), "nereye gitmek istiyorlar": talep akışları (OD istek çizgileri/poligonları:
+  iskele çiftleri arası potansiyel yolcu, karşılanan/karşılanmayan).
+
 ### Oynanış ve denge
 - [ ] **Reddedilen yolcu çift sayılıyor:** aynı grup her kalkışta yeniden "reddedilen" sayılıyor;
   istatistik şişiyor, memnuniyetteki kalabalık puanı sert. Grup başına bir kez saymak daha doğru.
