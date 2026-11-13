@@ -1,157 +1,102 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './style.css';
 import { Popup, type MapLayerMouseEvent, type MapMouseEvent, type Map as MapLibreMap } from 'maplibre-gl';
-import { PIER } from './config/balance.ts';
-import { loadCityPack, type CityPack } from './cityPack.ts';
-import { buildCoastIndex, snapToCoast, type CoastIndex, type LngLat } from './geo/geo.ts';
-import { createMap, LAYER, renderGhost, renderHistoric, renderPiers, setNoBuildEmphasis, type HistoricMarker } from './map/mapView.ts';
-import { evaluatePlacement, findHistoricMatch, normalizeName, pickPierName, PierNetwork, uniqueName, type Pier } from './sim/piers.ts';
+import { PIER, SHIP_TYPES } from './config/balance.ts';
+import { loadCityPack } from './cityPack.ts';
 import { devLog, installDevLogBridge } from './devlog.ts';
+import { Game } from './game.ts';
+import type { LngLat } from './geo/geo.ts';
+import { createMap, LAYER, renderDraft, renderGhost, renderNetwork, renderShips, setNoBuildEmphasis } from './map/mapView.ts';
+import { catchmentOf } from './sim/catchment.ts';
+import { berthsInUse, shipPose } from './sim/tick.ts';
+import type { Pier, Ship } from './sim/types.ts';
+import { escapeHtml } from './ui/html.ts';
+import { createPanel } from './ui/panel.ts';
 import { toast } from './ui/toast.ts';
+import { createTopbar } from './ui/topbar.ts';
 
 installDevLogBridge();
 
-const fmtLL = (p: LngLat) => `${p[1].toFixed(5)},${p[0].toFixed(5)}`;
-import { createToolbar, type Tool } from './ui/toolbar.ts';
-
-/** Tarihi iskeleleri kıyıya yapıştırır; çok uzak olanlar için konsola uyarı basar. */
-function snapHistoric(pack: CityPack, coast: CoastIndex): HistoricMarker[] {
-  const out: HistoricMarker[] = [];
-  for (const h of pack.historic) {
-    const snap = snapToCoast(coast, [h.lng, h.lat]);
-    if (!snap) {
-      console.warn(`[tarihi iskele] ${h.name}: kıyı bulunamadı, atlandı.`);
-      continue;
-    }
-    if (snap.distanceM > PIER.historicWarnDistanceM) {
-      console.warn(
-        `[tarihi iskele] ${h.name} kıyıdan ${Math.round(snap.distanceM)} m uzakta (sınır ${PIER.historicWarnDistanceM} m). ` +
-          `Kıyı noktası: ${snap.point[1].toFixed(5)}, ${snap.point[0].toFixed(5)}`,
-      );
-    }
-    out.push({ id: h.id, name: h.name, coast: snap.point, snapDistanceM: snap.distanceM });
-  }
-  return out;
-}
+const SIDE_LABEL: Record<string, string> = { avrupa: 'Avrupa yakası', anadolu: 'Anadolu yakası', ada: 'Ada' };
+const STATUS_LABEL: Record<string, string> = {
+  transit: 'tersaneden hatta gidiyor',
+  sailing: 'seferde',
+  queue: 'yanaşma sırası bekliyor',
+  dwell: 'iskelede',
+  layover: 'terminalde, sefer saatini bekliyor',
+};
 
 async function main(): Promise<void> {
-  const mapEl = document.getElementById('map')!;
-  const toolbarEl = document.getElementById('toolbar')!;
-
-  // Araç çubuğu harita yüklenmeden görünsün; araç değişimi harita hazır olunca bağlanır.
-  let onToolChange: (t: Tool) => void = () => {};
-  const toolbar = createToolbar(toolbarEl, (t) => onToolChange(t));
-
   const pack = await loadCityPack();
-  const coast = buildCoastIndex(pack.coastLines);
-  const historic = snapHistoric(pack, coast);
-  const network = new PierNetwork();
+  const game = new Game(pack);
+  game.setToast(toast);
 
-  const usedHistoricIds = () => new Set(network.list().flatMap((p) => (p.historicId ? [p.historicId] : [])));
+  const map = await createMap(document.getElementById('map')!, pack);
+  const panel = createPanel(document.getElementById('panel')!, game);
+  const topbar = createTopbar(document.getElementById('topbar')!, game);
+  const view = { showLoad: false };
 
-  function tryPlace(click: LngLat, quiet = false): Pier | null {
-    const result = evaluatePlacement(click, { coast, bbox: pack.bbox, piers: network.list(), noBuild: pack.noBuildZones });
-    if (!result.ok) {
-      if (!quiet) toast(result.message, 'error');
-      devLog('game', `iskele reddedildi [${result.reason}] tık=${fmtLL(click)} · ${result.message}`);
-      return null;
-    }
-    const used = usedHistoricIds();
-    const match = findHistoricMatch(result.coast, historic.filter((h) => !used.has(h.id)));
-    if (match) {
-      // Tarihi iskele kendi adını alır; ad daha önce sıradan bir iskeleye verildiyse o "X 2" olur.
-      const holder = network.list().find((p) => !p.historicId && normalizeName(p.name) === normalizeName(match.name));
-      if (holder) {
-        const renamed = uniqueName(match.name, network.names());
-        network.rename(holder.id, renamed);
-        devLog('game', `iskele yeniden adlandırıldı "${holder.name}" → "${renamed}" (tarihi ${match.name} için)`);
-      }
-    }
-    const name = match
-      ? uniqueName(match.name, network.names())
-      : pickPierName(result.coast, pack.places, { used: network.names(), historicNames: historic.map((h) => h.name) });
-    const pier = network.add({ name, coast: result.coast, dock: result.dock, ...(match ? { historicId: match.id } : {}) });
-    if (!quiet) toast(match ? `${name} tarihi iskelesi yeniden açıldı.` : `${name} iskelesi kuruldu.`, 'ok');
-    devLog(
-      'game',
-      `iskele kuruldu "${name}"${match ? ` (tarihi: ${match.id})` : ''} tık=${fmtLL(click)} kıyı=${fmtLL(result.coast)} ` +
-        `yapışma=${Math.round(result.snapDistanceM)} m · toplam ${network.list().length}`,
-    );
-    return pier;
-  }
+  let cursor: LngLat | null = null;
+  let lastSpeed = 1;
+  const redraw = () => {
+    renderNetwork(map, game, view);
+    renderDraft(map, game, cursor);
+    map.getCanvas().style.cursor = game.tool === 'pier' ? 'crosshair' : game.tool === 'line' ? 'cell' : '';
+    setNoBuildEmphasis(map, game.tool === 'pier');
+    if (game.tool !== 'pier') renderGhost(map, null);
+  };
+  game.onChange(() => {
+    if (game.speedIndex) lastSpeed = game.speedIndex;
+    panel.render();
+    topbar.render();
+    redraw();
+  });
 
-  // Öğretici başlangıç: Eminönü ve Kadıköy (hat Aşama 2'de).
-  for (const h of pack.historic.filter((x) => x.start)) {
-    if (!tryPlace([h.lng, h.lat], true)) console.warn(`[başlangıç] ${h.name} iskelesi kurulamadı.`);
-  }
-
-  const map = await createMap(mapEl, pack);
-
-  let tool: Tool = 'pan';
-  onToolChange = (t) => setTool(t);
-
-  function render(): void {
-    renderPiers(map, network.list());
-    renderHistoric(map, historic, usedHistoricIds());
-    toolbar.setPierCount(network.list().length);
-  }
-
-  function setTool(t: Tool): void {
-    if (t !== tool) devLog('game', `araç: ${t}`);
-    tool = t;
-    toolbar.setTool(t);
-    map.getCanvas().style.cursor = t === 'pier' ? 'crosshair' : '';
-    setNoBuildEmphasis(map, t === 'pier');
-    if (t !== 'pier') renderGhost(map, null);
-  }
-
-  // ---- tarihi iskele: üstüne gelince ad
+  // ---------------------------------------------------------------- etkileşim
   const hoverPopup = new Popup({ closeButton: false, closeOnClick: false, offset: 10, className: 'hover-popup' });
   map.on('mousemove', LAYER.historic, (ev: MapLayerMouseEvent) => {
     const f = ev.features?.[0];
     if (!f || f.geometry.type !== 'Point') return;
     hoverPopup
       .setLngLat(f.geometry.coordinates as LngLat)
-      .setHTML(`<strong>${escapeHtml(String(f.properties.name))}</strong><br><small>Tarihi iskele · burada kurmak indirimli olacak</small>`)
+      .setHTML(`<strong>${escapeHtml(String(f.properties.name))}</strong><br><small>Tarihi iskele · burada kurmak indirimli</small>`)
       .addTo(map);
-    if (tool === 'pan') map.getCanvas().style.cursor = 'help';
   });
-  map.on('mouseleave', LAYER.historic, () => {
-    hoverPopup.remove();
-    if (tool === 'pan') map.getCanvas().style.cursor = '';
-  });
+  map.on('mouseleave', LAYER.historic, () => hoverPopup.remove());
+  for (const layer of [LAYER.pier, LAYER.ship]) {
+    map.on('mouseenter', layer, () => (map.getCanvas().style.cursor = 'pointer'));
+    map.on('mouseleave', layer, () => redraw());
+  }
 
-  // ---- iskele: üstüne gelince el imleci
-  map.on('mouseenter', LAYER.pier, () => (map.getCanvas().style.cursor = 'pointer'));
-  map.on('mouseleave', LAYER.pier, () => (map.getCanvas().style.cursor = tool === 'pier' ? 'crosshair' : ''));
-
-  // ---- yerleştirme önizlemesi
   map.on('mousemove', (ev: MapMouseEvent) => {
-    if (tool !== 'pier') return;
-    const click: LngLat = [ev.lngLat.lng, ev.lngLat.lat];
-    const r = evaluatePlacement(click, { coast, bbox: pack.bbox, piers: network.list(), noBuild: pack.noBuildZones });
-    const coastPt = r.coast;
-    renderGhost(map, coastPt ? { click, coast: coastPt, ok: r.ok } : null);
+    cursor = [ev.lngLat.lng, ev.lngLat.lat];
+    if (game.tool === 'pier') {
+      const r = game.previewPlacement(cursor);
+      renderGhost(map, r.coast ? { click: cursor, coast: r.coast, ok: r.ok } : null);
+    } else if (game.tool === 'line' && game.draft.length) {
+      renderDraft(map, game, cursor);
+    }
   });
-  map.getCanvas().addEventListener('mouseleave', () => renderGhost(map, null));
+  map.getCanvas().addEventListener('mouseleave', () => {
+    cursor = null;
+    renderGhost(map, null);
+  });
 
-  // ---- tıklama
-  const pierPopup = new Popup({ closeButton: true, closeOnClick: true, offset: 14, maxWidth: '260px' });
+  const infoPopup = new Popup({ closeButton: true, closeOnClick: true, offset: 14, maxWidth: '290px' });
   map.on('click', (ev: MapMouseEvent) => {
-    const hit = pierAt(map, ev);
-    if (hit) {
-      openPierPopup(hit);
+    const pier = featureAt(map, ev, LAYER.pier, (id) => game.state.piers.find((p) => p.id === id));
+    if (game.tool === 'line') {
+      if (pier) game.clickPierForLine(pier.id);
+      else game.toast('Hat için bir iskeleye tıkla.', 'info');
       return;
     }
-    if (tool === 'pier') {
-      if (tryPlace([ev.lngLat.lng, ev.lngLat.lat])) {
-        render();
-        renderGhost(map, null);
-      }
-    }
+    if (pier) return openPierPopup(pier);
+    const ship = featureAt(map, ev, LAYER.ship, (id) => game.state.ships.find((s) => s.id === id));
+    if (ship) return openShipPopup(ship);
+    if (game.tool === 'pier') game.placePier([ev.lngLat.lng, ev.lngLat.lat]);
   });
 
-  function pierAt(m: MapLibreMap, ev: MapMouseEvent): Pier | undefined {
+  function featureAt<T>(m: MapLibreMap, ev: MapMouseEvent, layer: string, get: (id: string) => T | undefined): T | undefined {
     const pad = 6;
     const { x, y } = ev.point;
     const f = m.queryRenderedFeatures(
@@ -159,39 +104,106 @@ async function main(): Promise<void> {
         [x - pad, y - pad],
         [x + pad, y + pad],
       ],
-      { layers: [LAYER.pier] },
+      { layers: [layer] },
     )[0];
-    return f ? network.get(String(f.properties.id)) : undefined;
+    return f ? get(String(f.properties.id)) : undefined;
   }
 
   function openPierPopup(pier: Pier): void {
+    const { state, world } = game;
+    const lines = state.lines.filter((l) => l.pierIds.includes(pier.id));
+    const waiting = (state.waiting[pier.id] ?? []).reduce((s, g) => s + g.count, 0);
+    const c = catchmentOf(world, pier);
     const el = document.createElement('div');
     el.className = 'pier-popup';
-    const historicName = pier.historicId ? historic.find((h) => h.id === pier.historicId)?.name : undefined;
     el.innerHTML = `
       <h3>${escapeHtml(pier.name)}</h3>
-      ${historicName ? `<p class="tag">Tarihi iskele</p>` : ''}
-      <p>Kapsama: ${PIER.coverageRadiusM} m yürüme</p>
-      <p class="coords">${pier.coast[1].toFixed(5)}, ${pier.coast[0].toFixed(5)}</p>
-      <button type="button" class="danger">İskeleyi sil</button>`;
-    el.querySelector('button')!.addEventListener('click', () => {
-      network.remove(pier.id);
-      pierPopup.remove();
-      render();
-      toast(`${pier.name} iskelesi silindi.`, 'info');
-      devLog('game', `iskele silindi "${pier.name}" · toplam ${network.list().length}`);
+      <p class="tag-row">${pier.historicId ? '<span class="tag">Tarihi iskele</span>' : ''}<span class="tag side">${SIDE_LABEL[pier.side]}</span></p>
+      <p>Yanaşma yeri: ${berthsInUse(state, pier.id)} / ${pier.berths} dolu · Bekleyen: ${waiting.toLocaleString('tr-TR')} yolcu</p>
+      <p>Kapsama (${PIER.coverageRadiusM} m): ${Math.round(c.pop).toLocaleString('tr-TR')} kişi · çekim ${Math.round(c.att).toLocaleString('tr-TR')}</p>
+      <p>Hatlar: ${lines.length ? lines.map((l) => `<span class="ldot" style="background:${l.color}"></span>${escapeHtml(l.name)}`).join(', ') : '—'}</p>
+      <div class="row">
+        <button type="button" data-a="berth">+1 yanaşma yeri</button>
+        <button type="button" class="danger" data-a="delete">Sil</button>
+      </div>`;
+    el.querySelector('[data-a=berth]')!.addEventListener('click', () => {
+      game.upgradeBerths(pier.id);
+      openPierPopup(pier);
     });
-    pierPopup.setLngLat(pier.coast).setDOMContent(el).addTo(map);
+    el.querySelector('[data-a=delete]')!.addEventListener('click', () => {
+      if (lines.length && !confirm(`${pier.name} ${lines.length} hatta kullanılıyor; hatlar da kapanacak. Silinsin mi?`)) return;
+      infoPopup.remove();
+      game.deletePier(pier.id);
+    });
+    infoPopup.setLngLat(pier.coast).setDOMContent(el).addTo(map);
   }
 
-  render();
-  setTool('pan');
-  devLog('info', `harita hazır · ${historic.length} tarihi iskele · ${network.list().length} başlangıç iskelesi`);
-  (window as unknown as { vapur: unknown }).vapur = { map, network, pack, coast };
-}
+  function openShipPopup(ship: Ship): void {
+    const line = game.state.lines.find((l) => l.id === ship.lineId);
+    const t = SHIP_TYPES[ship.type];
+    const onboard = ship.onboard.reduce((s, g) => s + g.count, 0);
+    const pier = ship.pierId ? game.state.piers.find((p) => p.id === ship.pierId) : undefined;
+    const pose = shipPose(game.state, game.world, ship, 0);
+    if (!pose) return;
+    const el = document.createElement('div');
+    el.className = 'pier-popup';
+    el.innerHTML = `
+      <h3>${t.name}</h3>
+      <p>${line ? `<span class="ldot" style="background:${line.color}"></span>${escapeHtml(line.name)}` : ''}</p>
+      <p>${STATUS_LABEL[ship.status]}${pier ? ` · ${escapeHtml(pier.name)}` : ''}</p>
+      <p>Yolcu: ${onboard.toLocaleString('tr-TR')} / ${t.capacity} · ${t.speedKn} kn</p>`;
+    infoPopup.setLngLat(pose.p).setDOMContent(el).addTo(map);
+  }
 
-function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+  // ---------------------------------------------------------------- klavye
+  window.addEventListener('keydown', (ev) => {
+    if (ev.target instanceof HTMLInputElement || ev.target instanceof HTMLSelectElement || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    const k = ev.key.toLocaleLowerCase('tr');
+    if (ev.key === 'Escape') {
+      if (game.tool === 'line' && game.draft.length) game.cancelDraft();
+      else game.setTool('pan');
+    } else if (ev.key === 'Enter' && game.tool === 'line') game.finishDraft();
+    else if (ev.key === 'Backspace' && game.tool === 'line') game.undoDraft();
+    else if (k === 'g') game.setTool('pan');
+    else if (k === 'i' || k === 'ı') game.setTool('pier');
+    else if (k === 'h') game.setTool('line');
+    else if (ev.key === ' ') {
+      ev.preventDefault();
+      game.setSpeed(game.speedIndex === 0 ? lastSpeed : 0);
+    } else if (/^[1-4]$/.test(ev.key)) game.setSpeed(Number(ev.key));
+  });
+
+  // ---------------------------------------------------------------- döngü
+  let last = performance.now();
+  let lastUi = 0;
+  let lastNet = 0;
+  let lastShips = 0;
+  const frame = (now: number) => {
+    const dt = Math.min(250, now - last);
+    last = now;
+    const frac = game.advance(dt);
+    if (now - lastShips > 33) {
+      renderShips(map, game, frac);
+      lastShips = now;
+    }
+    if (now - lastUi > 250) {
+      topbar.refresh();
+      panel.refresh();
+      lastUi = now;
+    }
+    if (now - lastNet > 2000) {
+      renderNetwork(map, game, view);
+      lastNet = now;
+    }
+    requestAnimationFrame(frame);
+  };
+
+  panel.render();
+  topbar.render();
+  redraw();
+  requestAnimationFrame(frame);
+  devLog('info', `harita hazır · ${game.world.historic.length} tarihi iskele · ${game.state.piers.length} iskele · ${game.state.lines.length} hat`);
+  (window as unknown as { vapur: unknown }).vapur = { map, game };
 }
 
 main().catch((err: unknown) => {

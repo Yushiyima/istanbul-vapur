@@ -179,38 +179,3 @@ export function uniqueName(base: string, usedNames: ReadonlySet<string>): string
     if (!usedNames.has(candidate)) return candidate;
   }
 }
-
-/** Oyuncunun kurduğu iskeleler. Basit, sıralı liste. */
-export class PierNetwork {
-  private piers: Pier[] = [];
-  private seq = 0;
-
-  list(): readonly Pier[] {
-    return this.piers;
-  }
-
-  names(): Set<string> {
-    return new Set(this.piers.map((p) => p.name));
-  }
-
-  get(id: string): Pier | undefined {
-    return this.piers.find((p) => p.id === id);
-  }
-
-  add(data: Omit<Pier, 'id'>): Pier {
-    const pier: Pier = { id: `pier-${++this.seq}`, ...data };
-    this.piers.push(pier);
-    return pier;
-  }
-
-  rename(id: string, name: string): void {
-    const p = this.get(id);
-    if (p) p.name = name;
-  }
-
-  remove(id: string): boolean {
-    const before = this.piers.length;
-    this.piers = this.piers.filter((p) => p.id !== id);
-    return this.piers.length !== before;
-  }
-}

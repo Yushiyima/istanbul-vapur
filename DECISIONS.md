@@ -27,3 +27,17 @@ Belirsiz tasarım kararları ve gerekçeleri, her biri bir satır.
 - **Tarihi ad devri:** tarihi adlar ayrılmıyor, çünkü denendiğinde Kınalıada'daki iskele "Burgaz Adası" oldu. Bunun yerine tarihi iskele kurulunca adı ona geçiyor, adı önceden alan sıradan iskele "X 2" oluyor.
 - **Yazım:** OSM adı bir tarihi iskele adına denkse (boşluk ve büyük/küçük harf farkı yok sayılarak) tarihi yazım kullanılıyor ("Rumelikavağı" → "Rumeli Kavağı").
 - **Oyun alanı dışı:** bbox dışı tıklama `out-of-bounds` sebebiyle ayrı mesajla reddediliyor.
+
+## Aşama 2
+
+- **Su ızgarası** tarayıcıda yükleme anında kuruluyor (50 m, ~450 bin hücre, tarama satırı doldurma). Ayrı veri dosyası gerekmiyor.
+- **Kıyıdan uzak durma:** 30 m'lik daraltma yerine karaya komşu su hücrelerinin A* maliyeti ×4. Böylece Haliç'in dar uçları kapanmıyor ama gemiler açıktan gidiyor. Görüş hattı sadeleştirmesi kıyı hücrelerinden geçmeyi kabul etmiyor.
+- **Yaka/ada tespiti:** kara hücrelerinin bağlı bileşenleri. Avrupa = Eminönü'nün bileşeni, Anadolu = Kadıköy'ün, geri kalanı ada. 20 hücreden küçük bileşenler (dalgakıran, mendirek) yok sayılıyor.
+- **Kapsama:** 800 m daire − su; sadece iskelenin kendi kara bileşenindeki parçalar kalıyor (Boğaz'ın karşı kıyısı düşüyor). Havza (Aşama 3) aynı kuralı hücre bazında uyguluyor.
+- **Sefer modeli:** sarkaç (A→…→B→…→A). Terminalden kalkışlar hat açıldığından beri her `aralık` dakikada bir, iki uçtan da. O anda terminalde hazır gemi yoksa sefer "kaçan" sayılıyor. Gereken gemi = ⌈tur süresi / aralık⌉.
+- **Hizmet saatleri** 06:00–23:30. "Gece" işaretli hat 24 saat çalışıyor.
+- **Yanaşma:** ara iskelede 3 dk, terminalde en az 5 dk dönüş. Yanaşma yeri doluysa gemi açıkta sırada bekliyor.
+- **Tersane:** Haliç Tersanesi. Yeni gemi oradan su yoluyla hattın terminaline gidiyor. Filo kapasitesi 6, para karşılığı +4 büyütülüyor. Hat kapatılınca ya da gemi satılınca fiyatın yarısı geri geliyor.
+- **Hat düzenleme yok:** hattın iskeleleri sonradan değiştirilemiyor. Kapatıp yeniden açılıyor (basit tutmak için).
+- **Gemi tipi** hat başına tek. Tip değişince mevcut gemiler satılıp aynı sayıda yenisi alınıyor. Arabalı vapurun "sadece belirli iskeleler" kısıtı henüz yok.
+- **Çizim:** seyirdeki gemi rotanın 35 m sağına kaydırılıyor (karşılıklı geçişte üst üste binmesin), yanaşmış gemi iskele işaretinin 70 m açığında.

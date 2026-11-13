@@ -3,7 +3,7 @@
 Gerçek İstanbul haritası üstünde iskele kurup vapur hattı işlettiğin bir tarayıcı oyunu.
 Tasarım ve yol haritası: [`CLAUDE.md`](CLAUDE.md). Tasarım kararları: [`DECISIONS.md`](DECISIONS.md).
 
-**Durum:** Aşama 1. Harita, su katmanı, tarihi iskeleler, kıyıya yapışan iskele kurma/silme.
+**Durum:** Aşama 2. Su ağı, hat çizme, tarifeli seferler ve gemi hareketi.
 
 ## Çalıştırma
 
@@ -31,7 +31,15 @@ veri scriptini çalıştırman gerekmez.
 - Yeni iskele en yakın semt/mahalle adını alır (OSM `place=*`). 150 m içinde tarihi iskele
   varsa onun adını alır ve "tarihi iskele" olarak işaretlenir.
 - Soluk halkalar tarihi iskelelerdir. Üstüne gelince adları görünür.
-- Oyun Eminönü ve Kadıköy iskeleleriyle başlar.
+- Oyun Eminönü ve Kadıköy iskeleleriyle, aralarında 2 vapurlu tek hatla başlar.
+
+## Oynanış (Aşama 2)
+
+- **Hat (H):** iskelelere sırayla tıkla. Son iskeleye tekrar tıklayınca ya da **Enter**'a basınca hat açılır. **Backspace** son iskeleyi geri alır, **Esc** iptal eder. Rota su ızgarasında A* ile bulunur.
+- Yeni hatta 1 vapur Haliç Tersanesi'nden yola çıkar. Sol panelden sefer aralığı, gemi tipi, gemi sayısı (+/−) ve gece seferi ayarlanır.
+- Gemi sayısı aralığı tutturmaya yetmezse kart kırmızı uyarı verir ve seferler kaçar.
+- **Üst bar:** tarih/saat ve hız (⏸ 1× 2× 4× 8×; **Boşluk** duraklatır, **1–4** hız seçer).
+- İskele başına 2 yanaşma yeri vardır. Doluysa gemi sırada bekler; iskele popup'ından yanaşma yeri eklenebilir.
 
 ## Veri scripti
 

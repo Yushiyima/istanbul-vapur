@@ -4,7 +4,7 @@ Açık işler. Bitince `[x]` yap ya da sil; tasarım kararıysa `DECISIONS.md`'y
 
 ## İskele (Aşama 1 düzeltmeleri)
 
-- [ ] **Kapsama halkası sadece karada kalsın.** *(Aşama 2: su ızgarasının kara bileşenleriyle)* 800 m'lik daire şu an denizi de kapsıyor.
+- [x] **Kapsama halkası sadece karada kalsın.** *(Aşama 2: daire − su, sadece iskelenin kara bileşeni)* 800 m'lik daire şu an denizi de kapsıyor.
   Daire − su poligonu (`data/water.geojson`) farkı alınarak çizilmeli. `polygon-clipping` zaten
   bağımlılık olarak var. Aşama 3'teki havza/nüfus hesabı da aynı kara alanını kullanmalı.
   Karşı kıyıya taşan kısım (ör. Boğaz'ın dar yerlerinde) ayrıca düşünülmeli: yürüyerek karşıya

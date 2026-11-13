@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PIER } from '../config/balance.ts';
 import { buildCoastIndex, circlePolygon, haversineM, offsetM, type LngLat } from '../geo/geo.ts';
-import { evaluatePlacement, findHistoricMatch, pickPierName, PierNetwork, uniqueName, type Pier } from './piers.ts';
+import { evaluatePlacement, findHistoricMatch, pickPierName, uniqueName, type Pier } from './piers.ts';
 
 const O: LngLat = [29.0, 41.0];
 const coast = buildCoastIndex([[O, offsetM(O, 5000, 0)]]);
@@ -112,18 +112,5 @@ describe('adlandırma', () => {
     const historic = [{ id: 'bebek', coast: offsetM(O, 1000, 0) }];
     expect(findHistoricMatch(offsetM(O, 1100, 0), historic)?.id).toBe('bebek');
     expect(findHistoricMatch(offsetM(O, 1000 + PIER.historicMatchRadiusM + 20, 0), historic)).toBeNull();
-  });
-});
-
-describe('PierNetwork', () => {
-  it('ekler, bulur, siler', () => {
-    const net = new PierNetwork();
-    const a = net.add({ name: 'A', coast: O, dock: O });
-    const b = net.add({ name: 'B', coast: O, dock: O });
-    expect(a.id).not.toBe(b.id);
-    expect(net.names()).toEqual(new Set(['A', 'B']));
-    expect(net.remove(a.id)).toBe(true);
-    expect(net.remove(a.id)).toBe(false);
-    expect(net.list().map((p) => p.name)).toEqual(['B']);
   });
 });
