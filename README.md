@@ -3,7 +3,7 @@
 Gerçek İstanbul haritası üstünde iskele kurup vapur hattı işlettiğin bir tarayıcı oyunu.
 Tasarım ve yol haritası: [`CLAUDE.md`](CLAUDE.md). Tasarım kararları: [`DECISIONS.md`](DECISIONS.md).
 
-**Durum:** Aşama 3. Talep, ekonomi, memnuniyet.
+**Durum:** Aşama 4. Hedefler, olaylar, kayıt.
 
 ## Çalıştırma
 
@@ -47,6 +47,13 @@ veri scriptini çalıştırman gerekmez.
 - Bilet geliri kasaya girer; yakıt, mürettebat ve iskele bakımı düşer. Üst barda kasa, memnuniyet, bugünkü yolcu, günün net sonucu ve bekleyen yolcu görünür.
 - İskele aracında imleç yanında tahmini maliyet çıkar. Kalabalık iskelelerde etiket bekleyen yolcuyu gösterir.
 - Dolu vapura binemeyen ya da çok bekleyen yolcu memnuniyeti düşürür; memnuniyet talebi etkiler.
+
+## Oynanış (Aşama 4)
+
+- **Sağ kolon → Hedefler:** 11 şehir hedefi, ilerlemesi ve ödülü. Tamamlanınca toast ve ödül.
+- **Olaylar:** lodos/poyraz açık deniz (Adalar, Bostancı) seferlerini iptal eder; sis gemileri yavaşlatır; Boğaz'da akıntı kuzeye gideni yavaşlatır; tanker geçişi Boğaz'ı enine kesen seferleri bekletir. Üst barda hava ve tanker görünür.
+- **Yıl sonu** (12 oyun günü): özet penceresi.
+- **Kayıt:** sağ kolon → ☰ → Kaydet / Kayıttan yükle / Yeni oyun. Her gün sonu ve sekme kapanırken otomatik kaydedilir.
 
 ## Veri scripti
 

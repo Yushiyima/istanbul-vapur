@@ -22,9 +22,11 @@ import {
   upgradeTersane,
 } from './sim/network.ts';
 import { evaluatePlacement, findHistoricMatch, normalizeName, pickPierName, uniqueName, type PlacementResult } from './sim/piers.ts';
-import { createGame } from './sim/state.ts';
+import { createGame, dayIndex } from './sim/state.ts';
+import { RouteCache } from './nav/route.ts';
+import { AUTO_SLOT, loadGame, saveGame } from './save/save.ts';
 import { tick } from './sim/tick.ts';
-import type { GameState, Pier, ShipTypeId } from './sim/types.ts';
+import type { GameState, Notice, Pier, ShipTypeId } from './sim/types.ts';
 import { createWorld, type World } from './sim/world.ts';
 import type { CityPack } from './cityPack.ts';
 
@@ -54,7 +56,72 @@ export class Game {
     this.world = createWorld(pack.data);
     for (const w of this.world.warnings) console.warn(w);
     this.waterIndex = buildWaterIndex(pack.data.waterPolygons);
-    this.state = state ?? this.newState();
+    this.state = state ? Game.normalize(state) : this.newState();
+    this.lastSavedDay = dayIndex(this.state.minute);
+  }
+
+  /** Eski ya da eksik kayıtları güncel alanlarla tamamlar. */
+  static normalize(saved: GameState): GameState {
+    const base = createGame(saved.seed ?? 1);
+    return { ...base, ...saved, today: { ...base.today, ...saved.today }, hourAcc: { ...base.hourAcc, ...(saved.hourAcc ?? {}) }, notices: [] };
+  }
+
+  /** Durumu değiştirir; dünya önbellekleri (rota, havza, talep) iskele kimliklerine bağlı olduğu için sıfırlanır. */
+  replaceState(state: GameState): void {
+    this.state = Game.normalize(state);
+    this.world.routes = new RouteCache(this.world.grid);
+    this.world.catchments.clear();
+    this.world.od = null;
+    this.coverageCache.clear();
+    this.draft = [];
+    this.selectedLineId = null;
+    this.lastSavedDay = dayIndex(this.state.minute);
+    this.changed();
+  }
+
+  newGame(): void {
+    this.replaceState(this.newState());
+    devLog('game', 'yeni oyun');
+  }
+
+  private lastSavedDay = -1;
+
+  async save(slot: string = AUTO_SLOT): Promise<boolean> {
+    try {
+      await saveGame(this.state, slot);
+      this.lastSavedDay = dayIndex(this.state.minute);
+      devLog('game', `kaydedildi (${slot}) · gün ${dayIndex(this.state.minute)}`);
+      return true;
+    } catch (err) {
+      console.error('Kayıt başarısız:', err);
+      return false;
+    }
+  }
+
+  async load(slot: string = AUTO_SLOT): Promise<boolean> {
+    try {
+      const rec = await loadGame(slot);
+      if (!rec) return false;
+      this.replaceState(rec.state);
+      devLog('game', `yüklendi (${slot}) · gün ${dayIndex(this.state.minute)}`);
+      return true;
+    } catch (err) {
+      console.error('Yükleme başarısız:', err);
+      return false;
+    }
+  }
+
+  /** Gün değiştiyse otomatik kaydet. */
+  autosave(): void {
+    if (dayIndex(this.state.minute) !== this.lastSavedDay) void this.save(AUTO_SLOT);
+  }
+
+  /** Simülasyonun ürettiği bildirimleri alır ve boşaltır. */
+  drainNotices(): Notice[] {
+    if (!this.state.notices.length) return [];
+    const out = this.state.notices;
+    this.state.notices = [];
+    return out;
   }
 
   private newState(): GameState {

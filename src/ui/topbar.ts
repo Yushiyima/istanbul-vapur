@@ -4,6 +4,7 @@
 import { MONTHS, TIME } from '../config/balance.ts';
 import type { Game } from '../game.ts';
 import { fmtMoney } from '../sim/network.ts';
+import { currentWeather } from '../sim/events.ts';
 import { waitingCount } from '../sim/passengers.ts';
 import { minuteOfDay, monthIndex, yearIndex } from '../sim/state.ts';
 
@@ -55,7 +56,7 @@ export function createTopbar(root: HTMLElement, game: Game): { refresh(): void; 
     set('.tb-net', `${net >= 0 ? '+' : '−'}${fmtMoney(Math.abs(net))}`);
     root.querySelector('.tb-net')?.classList.toggle('neg', net < 0);
     set('.tb-wait', waitingCount(s).toLocaleString('tr-TR'));
-    set('.tb-weather', `${WEATHER_LABEL[s.weather.kind] ?? ''}${s.tanker ? ' · 🚢 Tanker' : ''}`);
+    set('.tb-weather', `${WEATHER_LABEL[currentWeather(s)] ?? ''}${s.tanker ? ' · 🚢 Tanker' : ''}`);
   }
 
   return { refresh, render };

@@ -56,3 +56,14 @@ Belirsiz tasarım kararları ve gerekçeleri, her biri bir satır.
 - **Memnuniyet:** saatlik; bekleme (6 dk iyi, 30 dk en kötü) %45, kalabalık (reddedilen + vazgeçen) %30, kaçan sefer %25. Üstel düzeltme 0,85. Tarihi iskele başına +0,6 (en fazla +5).
 - **Kalibrasyon** (`node scripts/simulate.ts`): başlangıç hattı (20 dk, 2 vapur) günde ~40 bin biniş, ~590 bin ₺ net, akşam memnuniyeti ~%92; zirvede dolu, gemi eklemeye teşvik.
 - **Zaman:** 1 oyun günü = 1 ay; 12 gün = 1 yıl. 1× hızda 1 oyun dakikası 0,4 sn.
+
+## Aşama 4
+
+- **Bölgeler** (`data/zones.geojson`) elle çizildi: `bogaz` (akıntı, tanker), `halic` (Haliç hedefi), `acik_deniz` (lodos/poyraz), `karadeniz_agzi` (poyraz). Sadece rotaların su kısmında kullanıldığı için karayı da kapsayabiliyorlar.
+- **Hava** her gün başında aya göre olasılıkla seçiliyor: lodos kışın %30, yazın %3; sis bahar/sonbahar sabahları. Lodosta rotasının ≥%25'i açık denizde olan bacak kalkamıyor (terminalde kaçan sefer, ara iskelede bekleme). Poyraz Karadeniz ağzını da sayıyor. Sis tüm gemileri %40 yavaşlatıyor.
+- **Akıntı:** Boğaz bölgesinde hız × (1 − 0,15 · kuzey bileşeni). Kuzeye giden yavaş, güneye giden hızlı. Tur süresi ve gereken gemi hesabı akıntısız (ortalama) yapılıyor.
+- **Tanker:** 06–22 arası saat başı %22 olasılıkla 12–28 dk. İki ucu farklı yakada olan ve orta noktası Boğaz bölgesinde kalan bacaklar kalkamıyor.
+- **Hedefler** saat başı kontrol ediliyor, her biri bir kez ödül veriyor. "Üç ayrı geçiş": orta noktaları birbirinden ≥1,5 km uzak yaka geçişi bacakları. "Sarıyer": 41,16° K üstündeki bir iskele, 41,045° K altındaki Avrupa yakası iskelesiyle hatlarla (aktarmalı) bağlı. "%95 memnuniyet" yıl sonunda yıllık ortalamaya bakıyor. Kapsama ve raylı aktarma sadece gemisi olan hatların iskelelerini sayıyor.
+- **Yıl sonu** (12. gün sonu): özet penceresi açılıyor, oyun duruyor, kapanınca devam ediyor.
+- **Kayıt:** IndexedDB (`idb`), `auto` ve `manual` iki yuva. Her oyun günü sonunda ve sekme gizlenince otomatik kaydediliyor. Açılışta otomatik kayıt varsa yükleniyor. Rastgelelik GameState içindeki mulberry32 durumundan geldiği için yüklenen oyun aynı şekilde devam ediyor (testli).
+- **Peron'un temeli** (paylaşım şablonları) bu aşamada geldi, çünkü olaylar ve hedefler paylaşım üretiyor. Saatlik durum paylaşımları Aşama 5'te.

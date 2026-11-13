@@ -14,7 +14,10 @@ import type { Pier, Ship } from './sim/types.ts';
 import { escapeHtml } from './ui/html.ts';
 import { createPanel } from './ui/panel.ts';
 import { toast } from './ui/toast.ts';
-import { createTopbar } from './ui/topbar.ts';
+import { createSidebar } from './ui/sidebar.ts';
+import { showModal } from './ui/modal.ts';
+import { createTopbar, formatClock, formatDate } from './ui/topbar.ts';
+import { AUTO_SLOT, MANUAL_SLOT } from './save/save.ts';
 
 installDevLogBridge();
 
@@ -31,10 +34,24 @@ async function main(): Promise<void> {
   const pack = await loadCityPack();
   const game = new Game(pack);
   game.setToast(toast);
+  if (await game.load(AUTO_SLOT)) toast(`Kayıt yüklendi: ${formatDate(game.state.minute)} ${formatClock(game.state.minute)}`, 'info');
 
   const map = await createMap(document.getElementById('map')!, pack);
   const panel = createPanel(document.getElementById('panel')!, game);
   const topbar = createTopbar(document.getElementById('topbar')!, game);
+  const sidebar = createSidebar(document.getElementById('sidebar')!, game, {
+    onSave: async () => toast((await game.save(MANUAL_SLOT)) && (await game.save(AUTO_SLOT)) ? 'Oyun kaydedildi.' : 'Kayıt başarısız.', 'ok'),
+    onLoad: async () => {
+      const ok = (await game.load(MANUAL_SLOT)) || (await game.load(AUTO_SLOT));
+      toast(ok ? `Kayıt yüklendi: ${formatDate(game.state.minute)}` : 'Kayıt bulunamadı.', ok ? 'ok' : 'error');
+    },
+    onNewGame: () => {
+      if (!confirm('Yeni oyun başlasın mı? Otomatik kayıt üzerine yazılır.')) return;
+      game.newGame();
+      void game.save(AUTO_SLOT);
+      toast('Yeni oyun başladı.', 'ok');
+    },
+  });
   const view = { showLoad: false };
 
   let cursor: LngLat | null = null;
@@ -50,6 +67,7 @@ async function main(): Promise<void> {
     if (game.speedIndex) lastSpeed = game.speedIndex;
     panel.render();
     topbar.render();
+    sidebar.render();
     redraw();
   });
 
@@ -211,6 +229,10 @@ async function main(): Promise<void> {
     if (now - lastUi > 250) {
       topbar.refresh();
       panel.refresh();
+      sidebar.refresh();
+      for (const n of game.drainNotices()) toast(n.text, n.kind);
+      if (game.state.pendingYearSummary) showYearSummary();
+      game.autosave();
       lastUi = now;
     }
     if (now - lastNet > 2000) {
@@ -220,8 +242,35 @@ async function main(): Promise<void> {
     requestAnimationFrame(frame);
   };
 
+  function showYearSummary(): void {
+    const y = game.state.pendingYearSummary!;
+    game.state.pendingYearSummary = null;
+    const resume = game.speedIndex;
+    game.setSpeed(0);
+    const row = (k: string, v: string) => `<tr><td>${k}</td><td>${v}</td></tr>`;
+    showModal(
+      `${y.year}. yıl özeti`,
+      `<table>
+        ${row('Yolcu', y.boardings.toLocaleString('tr-TR'))}
+        ${row('Gelir', fmtMoney(y.revenue))}
+        ${row('Gider', fmtMoney(y.costs))}
+        ${row('Net', fmtMoney(y.revenue - y.costs))}
+        ${row('Ortalama memnuniyet', `%${y.satisfaction.toFixed(1)}`)}
+        ${row('Yıl sonu ödülü', fmtMoney(y.rewards))}
+      </table>
+      <p class="small">${y.satisfaction >= 95 ? '🏆 %95 memnuniyet hedefi tamam!' : 'İpucu: %95 ortalama memnuniyetle biten yıl büyük ödül verir.'}</p>`,
+      () => game.setSpeed(resume || 1),
+    );
+    devLog('game', `yıl sonu ${y.year}: yolcu ${y.boardings} · net ${Math.round(y.revenue - y.costs)} · memnuniyet ${y.satisfaction.toFixed(1)}`);
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') void game.save(AUTO_SLOT);
+  });
+
   panel.render();
   topbar.render();
+  sidebar.render();
   redraw();
   requestAnimationFrame(frame);
   devLog('info', `harita hazır · ${game.world.historic.length} tarihi iskele · ${game.state.piers.length} iskele · ${game.state.lines.length} hat`);

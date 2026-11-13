@@ -1,0 +1,51 @@
+{
+  "type": "FeatureCollection",
+  "_note": "Elle çizilmiş, yaklaşık oyun bölgeleri. Rotaların suda kalan kısmı için kullanılır; karayı da kapsayabilir. bogaz: akıntı + tanker, halic: Haliç hattı hedefi, acik_deniz: lodos/poyraz iptali, karadeniz_agzi: poyraz iptali.",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "id": "bogaz", "name": "İstanbul Boğazı" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [28.985, 41.010], [29.000, 41.040], [29.030, 41.060], [29.040, 41.090], [29.048, 41.120],
+          [29.048, 41.165], [29.062, 41.200], [29.100, 41.240], [29.150, 41.240], [29.150, 41.200],
+          [29.105, 41.170], [29.098, 41.130], [29.082, 41.100], [29.068, 41.070], [29.052, 41.040],
+          [29.030, 41.020], [29.010, 41.003], [28.985, 41.010]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": "halic", "name": "Haliç" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [28.9725, 41.0160], [28.9725, 41.0290], [28.9450, 41.0600], [28.9150, 41.0650],
+          [28.9150, 41.0350], [28.9500, 41.0180], [28.9725, 41.0160]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": "acik_deniz", "name": "Marmara açıkları" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [28.850, 40.840], [29.150, 40.840], [29.150, 40.930], [29.060, 40.960], [29.030, 40.975],
+          [28.980, 40.988], [28.850, 40.990], [28.850, 40.840]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": "karadeniz_agzi", "name": "Karadeniz ağzı" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [29.040, 41.195], [29.150, 41.195], [29.150, 41.240], [29.040, 41.240], [29.040, 41.195]
+        ]]
+      }
+    }
+  ]
+}
