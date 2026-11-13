@@ -63,3 +63,38 @@ export async function deleteSave(slot: string): Promise<void> {
 export async function listSaves(): Promise<SaveRecord[]> {
   return (await (await db()).getAll(STORE)) as SaveRecord[];
 }
+
+// ---------------------------------------------------------------- anlık kopya (localStorage)
+
+const QUICK_KEY = 'vapur-istanbul:quick';
+
+/**
+ * Sayfa kapanırken (yenileme, sekme kapatma) IndexedDB'nin bitmesi beklenemez; durum senkron
+ * olarak localStorage'a yazılır. Açılışta IndexedDB'dekinden yeniyse bu kullanılır.
+ */
+export function quickSave(state: GameState): void {
+  try {
+    localStorage.setItem(QUICK_KEY, JSON.stringify({ savedAt: Date.now(), state: snapshot(state) }));
+  } catch {
+    /* kota ya da gizli mod: sessizce geç */
+  }
+}
+
+export function quickLoad(): { savedAt: number; state: GameState } | null {
+  try {
+    const raw = localStorage.getItem(QUICK_KEY);
+    if (!raw) return null;
+    const rec = JSON.parse(raw) as { savedAt: number; state: GameState };
+    return rec.state?.version === 1 ? rec : null;
+  } catch {
+    return null;
+  }
+}
+
+export function quickClear(): void {
+  try {
+    localStorage.removeItem(QUICK_KEY);
+  } catch {
+    /* yok say */
+  }
+}

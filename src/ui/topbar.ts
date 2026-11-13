@@ -4,9 +4,11 @@
 import { MONTHS, TIME } from '../config/balance.ts';
 import type { Game } from '../game.ts';
 import { fmtMoney } from '../sim/network.ts';
-import { currentWeather } from '../sim/events.ts';
+import { currentWeather, legExposed } from '../sim/events.ts';
 import { waitingCount } from '../sim/passengers.ts';
-import { minuteOfDay, monthIndex, yearIndex } from '../sim/state.ts';
+import { inService, minuteOfDay, monthIndex, yearIndex } from '../sim/state.ts';
+
+const formatHour = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 
 const WEATHER_LABEL: Record<string, string> = { acik: '☀ Açık', lodos: '🌬 Lodos', poyraz: '🌬 Poyraz', sis: '🌫 Sis' };
 const SPEED_LABEL = ['⏸', '1×', '2×', '4×', '8×'];
@@ -56,7 +58,19 @@ export function createTopbar(root: HTMLElement, game: Game): { refresh(): void; 
     set('.tb-net', `${net >= 0 ? '+' : '−'}${fmtMoney(Math.abs(net))}`);
     root.querySelector('.tb-net')?.classList.toggle('neg', net < 0);
     set('.tb-wait', waitingCount(s).toLocaleString('tr-TR'));
-    set('.tb-weather', `${WEATHER_LABEL[currentWeather(s)] ?? ''}${s.tanker ? ' · 🚢 Tanker' : ''}`);
+    // Durum: gece (seferler durur), lodos/poyraz (kaç hat bekliyor), tanker.
+    const parts: string[] = [WEATHER_LABEL[currentWeather(s)] ?? ''];
+    const nightOnly = s.lines.filter((l) => l.night).length;
+    if (!inService(s.minute, false)) {
+      parts.push(nightOnly ? `🌙 Gece · ${nightOnly} gece hattı çalışıyor` : `🌙 Gece · seferler ${formatHour(TIME.serviceStartMin)}'da başlar`);
+    }
+    const w = currentWeather(s);
+    if (w === 'lodos' || w === 'poyraz') {
+      const held = s.lines.filter((l) => [0, l.pierIds.length - 1].some((leg) => legExposed(s, game.world, l, leg, w))).length;
+      if (held) parts.push(`${held} hat iskelede bekliyor`);
+    }
+    if (s.tanker) parts.push('🚢 Tanker geçiyor');
+    set('.tb-weather', parts.filter(Boolean).join(' · '));
   }
 
   return { refresh, render };

@@ -261,8 +261,12 @@ async function main(): Promise<void> {
     const frac = game.advance(dt);
     const tAdv = game.lastAdvance;
     if (now - lastShips > 33) {
-      renderShips(map, game, frac);
-      hornOnDepartures();
+      try {
+        renderShips(map, game, frac);
+        hornOnDepartures();
+      } catch (err) {
+        if (slowFrames++ < PERF_MAX_LOGS) devLog('error', 'gemi çizimi hatası:', err);
+      }
       lastShips = now;
     }
     if (now - lastUi > 250) {
@@ -290,7 +294,10 @@ async function main(): Promise<void> {
     if (hour !== lastHourLogged && game.state.minute % 60 < 5) {
       lastHourLogged = hour;
       const s = game.state;
-      devLog('pulse', `${formatDate(s.minute)} ${formatClock(s.minute)} · kasa ${fmtMoney(s.money)} · memnuniyet %${Math.round(s.satisfaction)} · bugün ${s.today.boardings} yolcu · bekleyen ${waitingCount(s)} · kaçan ${s.today.tripsMissed} · hava ${currentWeather(s)}${s.tanker ? ' +tanker' : ''}`);
+      const st: Record<string, number> = {};
+      for (const sh of s.ships) st[sh.status] = (st[sh.status] ?? 0) + 1;
+      const statuses = Object.entries(st).map(([k, v]) => `${k} ${v}`).join(', ') || '-';
+      devLog('pulse', `${formatDate(s.minute)} ${formatClock(s.minute)} · kasa ${fmtMoney(s.money)} · memnuniyet %${Math.round(s.satisfaction)} · bugün ${s.today.boardings} yolcu · bekleyen ${waitingCount(s)} · kaçan ${s.today.tripsMissed} · hava ${currentWeather(s)}${s.tanker ? ' +tanker' : ''} · gemiler: ${statuses} · hız ${game.speed}×`);
     }
     requestAnimationFrame(frame);
   };
@@ -318,8 +325,15 @@ async function main(): Promise<void> {
   }
 
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') void game.save(AUTO_SLOT);
+    if (document.visibilityState === 'hidden') {
+      game.quickSave();
+      void game.save(AUTO_SLOT);
+    }
+    devLog('info', `sekme ${document.visibilityState === 'hidden' ? 'gizlendi (oyun duraklar)' : 'göründü'} · ${formatClock(game.state.minute)}`);
   });
+  window.addEventListener('pagehide', () => game.quickSave());
+  map.on('webglcontextlost', () => devLog('error', 'WebGL bağlamı kayboldu: harita çizimi durdu'));
+  map.on('webglcontextrestored', () => devLog('info', 'WebGL bağlamı geri geldi'));
 
   panel.render();
   topbar.render();

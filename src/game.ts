@@ -25,7 +25,7 @@ import { evaluatePlacement, findHistoricMatch, normalizeName, pickPierName, uniq
 import { createGame, dayIndex } from './sim/state.ts';
 import { pushFeed } from './sim/feed.ts';
 import { RouteCache } from './nav/route.ts';
-import { AUTO_SLOT, loadGame, saveGame } from './save/save.ts';
+import { AUTO_SLOT, loadGame, quickClear, quickLoad, quickSave, saveGame } from './save/save.ts';
 import { tick } from './sim/tick.ts';
 import type { GameState, Notice, Pier, ShipTypeId } from './sim/types.ts';
 import { createWorld, type World } from './sim/world.ts';
@@ -82,6 +82,7 @@ export class Game {
   }
 
   newGame(): void {
+    quickClear();
     this.replaceState(this.newState());
     devLog('game', 'yeni oyun');
   }
@@ -107,11 +108,19 @@ export class Game {
     }
   }
 
+  /** Sayfa kapanırken senkron anlık kopya. */
+  quickSave(): void {
+    quickSave(this.state);
+  }
+
   async load(slot: string = AUTO_SLOT): Promise<boolean> {
     try {
       const rec = await loadGame(slot);
-      if (!rec) return false;
-      this.replaceState(rec.state);
+      // Otomatik yüklemede sayfa kapanırken alınan anlık kopya daha yeniyse onu kullan.
+      const quick = slot === AUTO_SLOT ? quickLoad() : null;
+      const pick = quick && (!rec || quick.savedAt > rec.savedAt) ? quick.state : rec?.state;
+      if (!pick) return false;
+      this.replaceState(pick);
       devLog('game', `yüklendi (${slot}) · gün ${dayIndex(this.state.minute)}`);
       return true;
     } catch (err) {
