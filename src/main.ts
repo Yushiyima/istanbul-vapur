@@ -471,6 +471,16 @@ async function main(): Promise<void> {
   map.on('webglcontextlost', () => devLog('error', 'WebGL bağlamı kayboldu: harita çizimi durdu'));
   map.on('webglcontextrestored', () => devLog('info', 'WebGL bağlamı geri geldi'));
 
+  // Küçük ekran: sol panel açılır kapanır.
+  const panelEl = document.getElementById('panel')!;
+  const toggle = document.getElementById('panel-toggle');
+  toggle?.addEventListener('click', () => {
+    const open = !panelEl.classList.contains('open');
+    panelEl.classList.toggle('open', open);
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.textContent = open ? '✕ Kapat' : '☰ Araçlar';
+  });
+
   panel.render();
   topbar.render();
   sidebar.render();

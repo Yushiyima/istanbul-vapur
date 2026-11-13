@@ -25,7 +25,8 @@ export interface SidebarHandlers {
 
 export function createSidebar(root: HTMLElement, game: Game, h: SidebarHandlers): { render(): void; refresh(): void } {
   let tab: Tab = 'goals';
-  let collapsed = false;
+  // Telefonda harita görünsün: sağ kolon katlanmış başlar.
+  let collapsed = typeof window !== 'undefined' && window.innerWidth < 640;
   let layer: LayerId = 'none';
   let coverage = true;
   let sound = false;

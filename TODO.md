@@ -41,9 +41,9 @@ Açık işler. Bitince `[x]` yap ya da sil; tasarım kararıysa `DECISIONS.md`'y
 - [x] **Gece:** 23:30–06:00 arası gece hattı yoksa ekran durgun; isteğe bağlı "geceyi hızlı geç".
 
 ### Teknik
-- [ ] **Kapsama hesabı** iskele başına ~25 ms (daire − tüm deniz poligonu). Su poligonunu
+- [x] **Kapsama hesabı** iskele başına ~25 ms (daire − tüm deniz poligonu). Su poligonunu
   bir kez parçalara bölmek hızlandırır.
-- [ ] **Mobil/dokunmatik arayüz:** paneller küçük ekranda sıkışık, sürükle-bırak yok.
+- [x] **Mobil/dokunmatik arayüz:** paneller küçük ekranda sıkışık, sürükle-bırak yok.
 - [ ] **Yayın:** yerel ağda (`vite --host`) ya da GitHub Pages'te yayınlama.
 
 ## Kapandı: İskele (Aşama 1 düzeltmeleri)

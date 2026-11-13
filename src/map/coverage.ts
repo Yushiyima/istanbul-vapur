@@ -28,6 +28,39 @@ export function buildWaterIndex(polys: readonly PolygonCoords[]): WaterIndex {
   };
 }
 
+/**
+ * Sutherland–Hodgman: halkayı dikdörtgene kırpar. Büyük deniz poligonunu dairenin kutusuna
+ * indirmek için (fark işlemini ~20 kat hızlandırır). Çıktı kenar boyunca kendine değebilir;
+ * polygon-clipping bunu sorunsuz işler.
+ */
+export function clipRingToRect(ring: readonly LngLat[], [w, s, e, n]: [number, number, number, number]): LngLat[] {
+  type Edge = { inside: (p: LngLat) => boolean; cut: (a: LngLat, b: LngLat) => LngLat };
+  const lerpX = (a: LngLat, b: LngLat, x: number): LngLat => [x, a[1] + ((b[1] - a[1]) * (x - a[0])) / (b[0] - a[0])];
+  const lerpY = (a: LngLat, b: LngLat, y: number): LngLat => [a[0] + ((b[0] - a[0]) * (y - a[1])) / (b[1] - a[1]), y];
+  const edges: Edge[] = [
+    { inside: (p) => p[0] >= w, cut: (a, b) => lerpX(a, b, w) },
+    { inside: (p) => p[0] <= e, cut: (a, b) => lerpX(a, b, e) },
+    { inside: (p) => p[1] >= s, cut: (a, b) => lerpY(a, b, s) },
+    { inside: (p) => p[1] <= n, cut: (a, b) => lerpY(a, b, n) },
+  ];
+  let out: LngLat[] = ring.slice(0, -1);
+  for (const edge of edges) {
+    const input = out;
+    out = [];
+    for (let i = 0; i < input.length; i++) {
+      const cur = input[i]!, prev = input[(i + input.length - 1) % input.length]!;
+      const ci = edge.inside(cur), pi = edge.inside(prev);
+      if (ci) {
+        if (!pi) out.push(edge.cut(prev, cur));
+        out.push(cur);
+      } else if (pi) out.push(edge.cut(prev, cur));
+    }
+    if (!out.length) return [];
+  }
+  out.push(out[0]!);
+  return out;
+}
+
 export function landCoverage(center: LngLat, comp: number, water: WaterIndex, grid: WaterGrid): PolygonCoords[] {
   const R = PIER.coverageRadiusM;
   const circle = circlePolygon(center, R, UI.coverageCircleSteps);
@@ -39,9 +72,17 @@ export function landCoverage(center: LngLat, comp: number, water: WaterIndex, gr
     if (y < s) s = y;
     if (y > n) n = y;
   }
-  const near = water.polys.filter((_, i) => {
+  // Dairenin biraz genişletilmiş kutusuna kırpılmış deniz parçaları.
+  const pad = 0.002;
+  const rect: [number, number, number, number] = [w - pad, s - pad, e + pad, n + pad];
+  const near: PolygonCoords[] = [];
+  water.polys.forEach((poly, i) => {
     const b = water.boxes[i]!;
-    return !(b[2] < w || b[0] > e || b[3] < s || b[1] > n);
+    if (b[2] < rect[0] || b[0] > rect[2] || b[3] < rect[1] || b[1] > rect[3]) return;
+    const outer = clipRingToRect(poly[0]!, rect);
+    if (outer.length < 4) return;
+    const holes = poly.slice(1).map((h) => clipRingToRect(h, rect)).filter((h) => h.length >= 4);
+    near.push([outer, ...holes]);
   });
   let land: MultiPolygon;
   try {
