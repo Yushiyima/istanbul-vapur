@@ -176,9 +176,23 @@ function bestPlan(world: World, state: GameState, o: string, d: string): Plan | 
   return best;
 }
 
-function hasRail(world: World, p: Pier): boolean {
+export function hasRail(world: World, p: Pier): boolean {
   return world.data.stations.some((s) => haversineM(p.coast, [s.lng, s.lat]) <= DEMAND.railTransferRadiusM);
 }
+
+/** Yer çekimi modeli: iki iskele havzası arası dakikalık potansiyel yolcu (mod seçimi öncesi). */
+export function gravityBase(world: World, a: Pier, b: Pier, railA = hasRail(world, a), railB = hasRail(world, b)): number {
+  const ca = catchmentOf(world, a), cb = catchmentOf(world, b);
+  const distKm = Math.max(DEMAND.minDistKm, haversineM(a.coast, b.coast) / 1000);
+  let base = (DEMAND.k * ca.pop * cb.att) / distKm ** DEMAND.gamma;
+  if (a.side === b.side && a.side !== 'ada') base *= DEMAND.sameSideFactor;
+  if (railB) base *= DEMAND.railAttBoost;
+  if (railA) base *= DEMAND.railAttBoost;
+  return base;
+}
+
+/** Günlük potansiyel (saat profili toplamı × 60). */
+export const DAILY_FACTOR = DEMAND.hourly.reduce((s, v) => s + v, 0) * 60;
 
 export function odTable(state: GameState, world: World): OdCache {
   const sig = signature(state);
@@ -192,12 +206,7 @@ export function odTable(state: GameState, world: World): OdCache {
       if (a.id === b.id) continue;
       const plan = bestPlan(world, state, a.id, b.id);
       if (!plan || !Number.isFinite(plan.minutes)) continue;
-      const ca = catchmentOf(world, a), cb = catchmentOf(world, b);
-      const distKm = Math.max(DEMAND.minDistKm, haversineM(a.coast, b.coast) / 1000);
-      let base = (DEMAND.k * ca.pop * cb.att) / distKm ** DEMAND.gamma;
-      if (a.side === b.side && a.side !== 'ada') base *= DEMAND.sameSideFactor;
-      if (rail.get(b.id)) base *= DEMAND.railAttBoost;
-      if (rail.get(a.id)) base *= DEMAND.railAttBoost;
+      const base = gravityBase(world, a, b, rail.get(a.id)!, rail.get(b.id)!);
       const tVapur = walk + plan.minutes;
       const tLand = { peak: landMinutes(a, b, 'peak'), offpeak: landMinutes(a, b, 'offpeak'), night: landMinutes(a, b, 'night') };
       const share = {} as Record<Period, number>;

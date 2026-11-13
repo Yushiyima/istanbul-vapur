@@ -159,7 +159,7 @@ function addGameLayers(map: MapLibreMap, pack: CityPack): void {
   map.addImage('ship-arrow', shipArrowImage(), { pixelRatio: 2 });
   map.addImage('yard-anchor', anchorImage(), { pixelRatio: 2 });
 
-  for (const id of ['vapur-coverage', 'vapur-historic', 'vapur-piers', 'vapur-ghost', 'vapur-lines', 'vapur-ships', 'vapur-draft', 'vapur-tersane', 'vapur-overlay']) {
+  for (const id of ['vapur-coverage', 'vapur-historic', 'vapur-piers', 'vapur-ghost', 'vapur-lines', 'vapur-ships', 'vapur-draft', 'vapur-tersane', 'vapur-overlay', 'vapur-stations', 'vapur-flows', 'vapur-traffic']) {
     map.addSource(id, { type: 'geojson', data: fc([]) });
   }
   map.addSource('vapur-water', { type: 'geojson', data: pack.water });
@@ -193,6 +193,10 @@ function addGameLayers(map: MapLibreMap, pack: CityPack): void {
       layout: { visibility: 'none' },
       paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.55, 'fill-outline-color': 'rgba(0,0,0,0)' },
     },
+    firstSymbol,
+  );
+  map.addLayer(
+    { id: 'vapur-station-ring', type: 'fill', source: 'vapur-stations', filter: ['==', ['get', 'kind'], 'ring'], layout: { visibility: 'none' }, paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.1, 'fill-outline-color': ['get', 'color'] } },
     firstSymbol,
   );
   map.addLayer({ id: LAYER.noBuildFill, type: 'fill', source: 'vapur-nobuild', paint: { 'fill-color': COLORS.noBuild, 'fill-opacity': 0.08 } }, firstSymbol);
@@ -292,6 +296,44 @@ function addGameLayers(map: MapLibreMap, pack: CityPack): void {
       'circle-stroke-color': COLORS.pierStroke,
       'circle-stroke-width': 2,
     },
+  });
+
+  // Talep akışları (iskele çiftleri arası potansiyel)
+  map.addLayer({
+    id: 'vapur-flow-line',
+    type: 'line',
+    source: 'vapur-flows',
+    layout: { visibility: 'none', 'line-cap': 'round' },
+    paint: {
+      'line-color': ['case', ['get', 'served'], '#2f9e44', '#f76707'],
+      'line-width': ['get', 'width'],
+      'line-opacity': 0.55,
+    },
+  });
+  map.addLayer({
+    id: 'vapur-flow-label',
+    type: 'symbol',
+    source: 'vapur-flows',
+    minzoom: 12,
+    layout: { visibility: 'none', 'symbol-placement': 'line-center', 'text-field': ['get', 'label'], 'text-font': ['Noto Sans Regular'], 'text-size': 11 },
+    paint: { 'text-color': '#343a40', 'text-halo-color': '#fff', 'text-halo-width': 1.4 },
+  });
+  map.addLayer({
+    id: 'vapur-station-dot',
+    type: 'circle',
+    source: 'vapur-stations',
+    filter: ['==', ['get', 'kind'], 'station'],
+    layout: { visibility: 'none' },
+    paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 3, 15, 7], 'circle-color': '#fff', 'circle-stroke-color': ['get', 'color'], 'circle-stroke-width': 2.5 },
+  });
+  map.addLayer({
+    id: 'vapur-station-label',
+    type: 'symbol',
+    source: 'vapur-stations',
+    filter: ['==', ['get', 'kind'], 'station'],
+    minzoom: 12.5,
+    layout: { visibility: 'none', 'text-field': ['get', 'name'], 'text-font': ['Noto Sans Regular'], 'text-size': 11, 'text-offset': [0, 1], 'text-anchor': 'top' },
+    paint: { 'text-color': ['get', 'color'], 'text-halo-color': '#fff', 'text-halo-width': 1.4 },
   });
 
   // Gemiler
@@ -437,6 +479,19 @@ export function renderGhost(map: MapLibreMap, ghost: GhostState | null): void {
 export function setOverlay(map: MapLibreMap, data: FeatureCollection | null): void {
   map.setLayoutProperty('vapur-overlay-fill', 'visibility', data ? 'visible' : 'none');
   if (data) source(map, 'vapur-overlay').setData(data);
+}
+
+const STATION_LAYERS = ['vapur-station-ring', 'vapur-station-dot', 'vapur-station-label'];
+const FLOW_LAYERS = ['vapur-flow-line', 'vapur-flow-label'];
+
+export function setStations(map: MapLibreMap, data: FeatureCollection | null): void {
+  for (const id of STATION_LAYERS) map.setLayoutProperty(id, 'visibility', data ? 'visible' : 'none');
+  if (data) source(map, 'vapur-stations').setData(data);
+}
+
+export function setFlows(map: MapLibreMap, data: FeatureCollection | null): void {
+  for (const id of FLOW_LAYERS) map.setLayoutProperty(id, 'visibility', data ? 'visible' : 'none');
+  if (data) source(map, 'vapur-flows').setData(data);
 }
 
 export function setCoverageVisible(map: MapLibreMap, visible: boolean): void {

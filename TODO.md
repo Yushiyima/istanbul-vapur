@@ -29,7 +29,7 @@ Açık işler. Bitince `[x]` yap ya da sil; tasarım kararıysa `DECISIONS.md`'y
 - [x] **Tersaneler haritada ve kurulabilir.** Haliç Tersanesi belirgin bir işaretle görünsün;
   oyuncu kıyıya yeni tersane kurabilsin (maliyet, kapasite, bakım yuvası). Yeni gemi ve bakım
   en yakın tersaneye gider.
-- [ ] **Yeni veri katmanları:** raylı sistem istasyonları ve aktarma yarıçapları, nüfus yoğunluğu
+- [x] **Yeni veri katmanları:** raylı sistem istasyonları ve aktarma yarıçapları, nüfus yoğunluğu
   (var, iyileştir), "nereye gitmek istiyorlar": talep akışları (OD istek çizgileri/poligonları:
   iskele çiftleri arası potansiyel yolcu, karşılanan/karşılanmayan).
 

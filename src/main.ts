@@ -6,8 +6,8 @@ import { loadCityPack } from './cityPack.ts';
 import { devLog, installDevLogBridge } from './devlog.ts';
 import { Game } from './game.ts';
 import type { LngLat } from './geo/geo.ts';
-import { createMap, LAYER, renderDraft, renderGhost, renderNetwork, renderShips, setCoverageVisible, setNoBuildEmphasis, setOverlay } from './map/mapView.ts';
-import { overlayData } from './map/overlay.ts';
+import { createMap, LAYER, renderDraft, renderGhost, renderNetwork, renderShips, setCoverageVisible, setFlows, setNoBuildEmphasis, setOverlay, setStations } from './map/mapView.ts';
+import { flowData, overlayData, stationData } from './map/overlay.ts';
 import { horn, setSound } from './ui/sound.ts';
 import { currentWeather } from './sim/events.ts';
 import { waitingCount } from './sim/passengers.ts';
@@ -66,7 +66,10 @@ async function main(): Promise<void> {
     onLayer: (id) => {
       const cells = pack.data.cells;
       view.showLoad = id === 'load';
+      view.layer = id;
       setOverlay(map, (id === 'pop' || id === 'att') && cells ? overlayData(cells, id) : null);
+      setStations(map, id === 'rail' ? stationData(pack.data.stations) : null);
+      setFlows(map, id === 'flows' ? flowData(game.state, game.world) : null);
       if ((id === 'pop' || id === 'att') && !cells) toast('Nüfus verisi yok: scripts/build-cells.mjs çalıştır.', 'error');
       renderNetwork(map, game, view);
       devLog('game', `katman: ${id}`);
@@ -76,7 +79,7 @@ async function main(): Promise<void> {
     onMaintThreshold: (v) => game.setMaintThreshold(v),
     onNightSkip: (on) => game.setNightSkip(on),
   });
-  const view = { showLoad: false };
+  const view: { showLoad: boolean; layer: string } = { showLoad: false, layer: 'none' };
   // Kalkışta düdük: gemi durumu yanaşmışken seyre geçtiyse ve ekrandaysa.
   const lastStatus = new Map<string, string>();
   function hornOnDepartures(): void {
@@ -105,6 +108,8 @@ async function main(): Promise<void> {
   };
   game.onChange(() => {
     if (game.speedIndex) lastSpeed = game.speedIndex;
+    // Talep akışları ağa bağlı: ağ değişince yenile.
+    if (view.layer === 'flows') setFlows(map, flowData(game.state, game.world));
     panel.render();
     topbar.render();
     sidebar.render();

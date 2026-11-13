@@ -8,7 +8,7 @@ import { fmtMoney } from '../sim/network.ts';
 import { escapeHtml } from './html.ts';
 import { formatClock, formatDate } from './topbar.ts';
 
-export type LayerId = 'none' | 'pop' | 'att' | 'coverage' | 'load';
+export type LayerId = 'none' | 'pop' | 'att' | 'coverage' | 'load' | 'rail' | 'flows';
 type Tab = 'goals' | 'feed' | 'menu';
 
 export interface SidebarHandlers {
@@ -100,10 +100,10 @@ export function createSidebar(root: HTMLElement, game: Game, h: SidebarHandlers)
     const layers = h.onLayer
       ? `<h5>Katmanlar</h5>
       <div class="layers">
-        ${opt('none', 'Yok')}${opt('pop', 'Nüfus')}${opt('att', 'Çekim')}${opt('load', 'Hat doluluğu')}
+        ${opt('none', 'Yok')}${opt('pop', 'Nüfus')}${opt('att', 'Çekim')}${opt('load', 'Hat doluluğu')}${opt('rail', 'Raylı sistem')}${opt('flows', 'Talep akışları')}
         <label><input type="checkbox" name="coverage"${coverage ? ' checked' : ''}> Kapsama alanları</label>
       </div>
-      <p class="small">Nüfus ve çekim: açık renk az, koyu çok (dilimlere göre).</p>`
+      <p class="small">Nüfus ve çekim: açık renk az, koyu çok. Raylı sistem: istasyonlar ve 400 m aktarma halkası (metro kırmızı, Marmaray mavi). Talep akışları: iskele çiftleri arası günlük potansiyel yolcu; yeşil hatla bağlı, turuncu bağlı değil.</p>`
       : '';
     const audio = h.onSound ? `<h5>Ses</h5><label><input type="checkbox" name="sound"${sound ? ' checked' : ''}> Vapur düdüğü</label>` : '';
     const st = game.state.settings;
