@@ -6,7 +6,12 @@ import { loadCityPack, type CityPack } from './cityPack.ts';
 import { buildCoastIndex, snapToCoast, type CoastIndex, type LngLat } from './geo/geo.ts';
 import { createMap, LAYER, renderGhost, renderHistoric, renderPiers, setNoBuildEmphasis, type HistoricMarker } from './map/mapView.ts';
 import { evaluatePlacement, findHistoricMatch, pickPierName, PierNetwork, uniqueName, type Pier } from './sim/piers.ts';
+import { devLog, installDevLogBridge } from './devlog.ts';
 import { toast } from './ui/toast.ts';
+
+installDevLogBridge();
+
+const fmtLL = (p: LngLat) => `${p[1].toFixed(5)},${p[0].toFixed(5)}`;
 import { createToolbar, type Tool } from './ui/toolbar.ts';
 
 /** Tarihi iskeleleri kıyıya yapıştırır; çok uzak olanlar için konsola uyarı basar. */
@@ -48,6 +53,7 @@ async function main(): Promise<void> {
     const result = evaluatePlacement(click, { coast, piers: network.list(), noBuild: pack.noBuildZones });
     if (!result.ok) {
       if (!quiet) toast(result.message, 'error');
+      devLog('game', `iskele reddedildi [${result.reason}] tık=${fmtLL(click)} · ${result.message}`);
       return null;
     }
     const used = usedHistoricIds();
@@ -55,6 +61,11 @@ async function main(): Promise<void> {
     const name = match ? uniqueName(match.name, network.names()) : pickPierName(result.coast, pack.places, network.names());
     const pier = network.add({ name, coast: result.coast, dock: result.dock, ...(match ? { historicId: match.id } : {}) });
     if (!quiet) toast(match ? `${name} tarihi iskelesi yeniden açıldı.` : `${name} iskelesi kuruldu.`, 'ok');
+    devLog(
+      'game',
+      `iskele kuruldu "${name}"${match ? ` (tarihi: ${match.id})` : ''} tık=${fmtLL(click)} kıyı=${fmtLL(result.coast)} ` +
+        `yapışma=${Math.round(result.snapDistanceM)} m · toplam ${network.list().length}`,
+    );
     return pier;
   }
 
@@ -75,6 +86,7 @@ async function main(): Promise<void> {
   }
 
   function setTool(t: Tool): void {
+    if (t !== tool) devLog('game', `araç: ${t}`);
     tool = t;
     toolbar.setTool(t);
     map.getCanvas().style.cursor = t === 'pier' ? 'crosshair' : '';
@@ -156,12 +168,14 @@ async function main(): Promise<void> {
       pierPopup.remove();
       render();
       toast(`${pier.name} iskelesi silindi.`, 'info');
+      devLog('game', `iskele silindi "${pier.name}" · toplam ${network.list().length}`);
     });
     pierPopup.setLngLat(pier.coast).setDOMContent(el).addTo(map);
   }
 
   render();
   setTool('pan');
+  devLog('info', `harita hazır · ${historic.length} tarihi iskele · ${network.list().length} başlangıç iskelesi`);
   (window as unknown as { vapur: unknown }).vapur = { map, network, pack, coast };
 }
 

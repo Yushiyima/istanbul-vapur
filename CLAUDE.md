@@ -146,3 +146,16 @@ Bir aşamayı bitirmeden sonrakine geçme.
 - Gereksiz soyutlama yapma; çalışan basit çözüm önce.
 - `data/historic_piers.json` koordinatları yaklaşıktır; kıyıya snap ederek doğrula, çok uzaktaysa
   düzelt ve not düş.
+- Açık işler `TODO.md`'de. Kullanıcı "şimdi düzeltme, listeye ekle" derse oraya yaz.
+
+### Git / GitHub
+- Repo: https://github.com/Yushiyima/istanbul-vapur (public), dal `main`.
+- Git ve GitHub tamamen Claude'un kontrolünde: anlamlı her adımda (aşama sonu, düzeltme, belge
+  güncellemesi) **kullanıcıya sormadan commit at ve push et.**
+- Repo public: secret, API anahtarı, `.env`, kişisel veri asla commit'lenmez. Commit kimliği
+  GitHub noreply adresi (repo yerel ayarı), gerçek e-posta değil.
+- Büyük ham veri (`data/raw/`), `logs/`, `dist/` git'e girmez.
+
+### Dev logları
+- `npm run dev` açıkken tarayıcı uyarı/hataları ve oyun olayları `logs/dev.log` dosyasına yazılır
+  (`src/devlog.ts` + `vite.config.ts` eklentisi). Kullanıcı "loglara bak" derse oradan oku.
