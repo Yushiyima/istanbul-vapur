@@ -1,0 +1,187 @@
+:root {
+  --ink: #1f2d3d;
+  --muted: #5b6b7c;
+  --panel: rgba(255, 255, 255, 0.94);
+  --line: #d6dee6;
+  --accent: #e8590c;
+  --ok: #2f9e44;
+  --bad: #e03131;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--ink);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #eef2f5;
+}
+
+#map {
+  position: absolute;
+  inset: 0;
+}
+
+.panel {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+  width: 240px;
+  padding: 12px 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(20, 40, 60, 0.12);
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.2px;
+}
+.brand span {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.tools {
+  display: flex;
+  gap: 6px;
+  margin: 10px 0 8px;
+}
+.tools button {
+  flex: 1;
+  padding: 7px 8px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  cursor: pointer;
+}
+.tools button:hover {
+  border-color: #aab8c5;
+}
+.tools button.active {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+kbd {
+  font-size: 11px;
+  opacity: 0.65;
+  font-family: inherit;
+}
+
+.stats {
+  font-size: 13px;
+  color: var(--muted);
+}
+.stats span {
+  font-weight: 700;
+  color: var(--ink);
+}
+.hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+/* toast */
+.toasts {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.toast {
+  max-width: min(440px, calc(100vw - 32px));
+  padding: 8px 14px;
+  font-size: 14px;
+  color: #fff;
+  background: #334155;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+  opacity: 0;
+  transform: translateY(-6px);
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+}
+.toast.show {
+  opacity: 1;
+  transform: none;
+}
+.toast-ok {
+  background: var(--ok);
+}
+.toast-error {
+  background: var(--bad);
+}
+
+/* popups */
+.hover-popup .maplibregl-popup-content {
+  padding: 6px 10px;
+  font-size: 13px;
+}
+.hover-popup small {
+  color: var(--muted);
+}
+.pier-popup h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+.pier-popup p {
+  margin: 2px 0;
+  font-size: 13px;
+}
+.pier-popup .tag {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: 11px;
+  color: #6b5a36;
+  background: #f3ecd9;
+  border-radius: 4px;
+}
+.pier-popup .coords {
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.pier-popup button.danger {
+  width: 100%;
+  margin-top: 8px;
+  padding: 6px;
+  font: inherit;
+  font-size: 13px;
+  color: #fff;
+  background: var(--bad);
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.maplibregl-ctrl-attrib {
+  font-size: 11px;
+}
+
+@media (max-width: 520px) {
+  .panel {
+    right: 12px;
+    width: auto;
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "istanbul-vapur",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "data:coast": "node scripts/build-coast.mjs",
+    "data:check-piers": "node scripts/check-historic-piers.mjs"
+  },
+  "dependencies": {
+    "h3-js": "^4.5.0",
+    "idb": "^8.0.4",
+    "maplibre-gl": "^6.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "polygon-clipping": "^0.15.7",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
+  }
+}

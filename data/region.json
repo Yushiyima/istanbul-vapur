@@ -1,0 +1,4 @@
+{
+  "_note": "Oyun alanı. Hem veri scriptleri hem uygulama bu bbox'u kullanır. [batı, güney, doğu, kuzey]",
+  "bbox": [28.85, 40.84, 29.15, 41.24]
+}

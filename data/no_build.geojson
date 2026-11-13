@@ -1,0 +1,20 @@
+{
+  "type": "FeatureCollection",
+  "_note": "İskele kurulamayan bölgeler. Elle çizilmiş, yaklaşık. Yeni bölge eklemek için Feature ekle; properties.name toast'ta görünür.",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "id": "dolmabahce", "name": "Dolmabahçe Sarayı önü" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [28.9942, 41.0372],
+          [28.9962, 41.0345],
+          [29.0040, 41.0380],
+          [29.0022, 41.0405],
+          [28.9942, 41.0372]
+        ]]
+      }
+    }
+  ]
+}
