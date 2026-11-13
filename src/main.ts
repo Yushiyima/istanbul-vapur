@@ -5,7 +5,7 @@ import { PIER } from './config/balance.ts';
 import { loadCityPack, type CityPack } from './cityPack.ts';
 import { buildCoastIndex, snapToCoast, type CoastIndex, type LngLat } from './geo/geo.ts';
 import { createMap, LAYER, renderGhost, renderHistoric, renderPiers, setNoBuildEmphasis, type HistoricMarker } from './map/mapView.ts';
-import { evaluatePlacement, findHistoricMatch, pickPierName, PierNetwork, uniqueName, type Pier } from './sim/piers.ts';
+import { evaluatePlacement, findHistoricMatch, normalizeName, pickPierName, PierNetwork, uniqueName, type Pier } from './sim/piers.ts';
 import { devLog, installDevLogBridge } from './devlog.ts';
 import { toast } from './ui/toast.ts';
 
@@ -50,7 +50,7 @@ async function main(): Promise<void> {
   const usedHistoricIds = () => new Set(network.list().flatMap((p) => (p.historicId ? [p.historicId] : [])));
 
   function tryPlace(click: LngLat, quiet = false): Pier | null {
-    const result = evaluatePlacement(click, { coast, piers: network.list(), noBuild: pack.noBuildZones });
+    const result = evaluatePlacement(click, { coast, bbox: pack.bbox, piers: network.list(), noBuild: pack.noBuildZones });
     if (!result.ok) {
       if (!quiet) toast(result.message, 'error');
       devLog('game', `iskele reddedildi [${result.reason}] tık=${fmtLL(click)} · ${result.message}`);
@@ -58,7 +58,18 @@ async function main(): Promise<void> {
     }
     const used = usedHistoricIds();
     const match = findHistoricMatch(result.coast, historic.filter((h) => !used.has(h.id)));
-    const name = match ? uniqueName(match.name, network.names()) : pickPierName(result.coast, pack.places, network.names());
+    if (match) {
+      // Tarihi iskele kendi adını alır; ad daha önce sıradan bir iskeleye verildiyse o "X 2" olur.
+      const holder = network.list().find((p) => !p.historicId && normalizeName(p.name) === normalizeName(match.name));
+      if (holder) {
+        const renamed = uniqueName(match.name, network.names());
+        network.rename(holder.id, renamed);
+        devLog('game', `iskele yeniden adlandırıldı "${holder.name}" → "${renamed}" (tarihi ${match.name} için)`);
+      }
+    }
+    const name = match
+      ? uniqueName(match.name, network.names())
+      : pickPierName(result.coast, pack.places, { used: network.names(), historicNames: historic.map((h) => h.name) });
     const pier = network.add({ name, coast: result.coast, dock: result.dock, ...(match ? { historicId: match.id } : {}) });
     if (!quiet) toast(match ? `${name} tarihi iskelesi yeniden açıldı.` : `${name} iskelesi kuruldu.`, 'ok');
     devLog(
@@ -118,7 +129,7 @@ async function main(): Promise<void> {
   map.on('mousemove', (ev: MapMouseEvent) => {
     if (tool !== 'pier') return;
     const click: LngLat = [ev.lngLat.lng, ev.lngLat.lat];
-    const r = evaluatePlacement(click, { coast, piers: network.list(), noBuild: pack.noBuildZones });
+    const r = evaluatePlacement(click, { coast, bbox: pack.bbox, piers: network.list(), noBuild: pack.noBuildZones });
     const coastPt = r.coast;
     renderGhost(map, coastPt ? { click, coast: coastPt, ok: r.ok } : null);
   });

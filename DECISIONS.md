@@ -20,3 +20,10 @@ Belirsiz tasarım kararları ve gerekçeleri, her biri bir satır.
 - **Harita sınırı:** bbox dikey, ekranlar yatay. `maxBounds` boylamda ±0,45°, enlemde ±0,12° pay veriyor, yoksa bbox tam sığmıyor.
 - **Bbox dışındaki deniz** altlıkta açık mavi. Oyun alanının suyu daha koyu, böylece sınır görünür ama sert değil.
 - **Kayıt yok:** Aşama 1'de iskeleler sayfa yenilenince sıfırlanıyor. IndexedDB Aşama 4'te.
+
+## Aşama 1 düzeltmeleri (log incelemesi)
+
+- **Ad ağırlıkları:** etkin mesafe = mesafe / ağırlık. quarter (semt) 1,6 · suburb (mahalle) 1 · island 1,3 · neighbourhood 0,7 · town (ilçe) 0,6. `locality` (site, plaj, çeşme) kullanılmıyor. İstanbul OSM'inde semtler `quarter`, mahalleler `suburb` olarak etiketli.
+- **Tarihi ad devri:** tarihi adlar ayrılmıyor, çünkü denendiğinde Kınalıada'daki iskele "Burgaz Adası" oldu. Bunun yerine tarihi iskele kurulunca adı ona geçiyor, adı önceden alan sıradan iskele "X 2" oluyor.
+- **Yazım:** OSM adı bir tarihi iskele adına denkse (boşluk ve büyük/küçük harf farkı yok sayılarak) tarihi yazım kullanılıyor ("Rumelikavağı" → "Rumeli Kavağı").
+- **Oyun alanı dışı:** bbox dışı tıklama `out-of-bounds` sebebiyle ayrı mesajla reddediliyor.

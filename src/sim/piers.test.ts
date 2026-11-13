@@ -68,8 +68,39 @@ describe('adlandırma', () => {
   ];
 
   it('en yakın yer adını seçer', () => {
-    expect(pickPierName(offsetM(O, 100, 0), places, new Set())).toBe('Bebek');
-    expect(pickPierName(offsetM(O, 1500, 0), places, new Set())).toBe('Arnavutköy');
+    expect(pickPierName(offsetM(O, 100, 0), places, { used: new Set() })).toBe('Bebek');
+    expect(pickPierName(offsetM(O, 1500, 0), places, { used: new Set() })).toBe('Arnavutköy');
+  });
+
+  it('semt (quarter) yakındaki mahalleye (suburb) tercih edilir, locality hiç kullanılmaz', () => {
+    const pl = [
+      { name: 'Camiikebir', place: 'suburb', lat: 41.0, lng: 29.0 },
+      { name: 'Hasköy', place: 'quarter', lat: 41.0, lng: 29.0 + 600 / 84000 },
+      { name: 'Oymak Sitesi', place: 'locality', lat: 41.0, lng: 29.0 },
+    ];
+    // Camiikebir 100 m, Hasköy ~500 m: 500/1.6 > 100 → mahalle kazanır
+    expect(pickPierName(offsetM(O, 100, 0), pl, { used: new Set() })).toBe('Camiikebir');
+    // Camiikebir 250 m, Hasköy ~350 m: 350/1.6 < 250 → semt kazanır
+    expect(pickPierName(offsetM(O, 250, 0), pl, { used: new Set() })).toBe('Hasköy');
+    expect(pickPierName(O, [pl[2]!], { used: new Set() })).toBe('İskele');
+  });
+
+  it('kurulmamış tarihi iskelenin adı ayrılır; OSM yazımı tarihi yazıma çevrilir', () => {
+    const pl = [
+      { name: 'Kanlıca', place: 'suburb', lat: 41.0, lng: 29.0 },
+      { name: 'Çubuklu', place: 'suburb', lat: 41.0, lng: 29.02 },
+      { name: 'Rumelikavağı', place: 'suburb', lat: 41.0, lng: 29.0 },
+    ];
+    const reserved = new Set(['Kanlıca', 'Rumeli Kavağı']);
+    expect(pickPierName(O, pl.slice(0, 2), { used: new Set(), reserved })).toBe('Çubuklu');
+    expect(pickPierName(O, [pl[2]!], { used: new Set(), historicNames: ['Rumeli Kavağı'] })).toBe('Rumeli Kavağı');
+    expect(pickPierName(O, [pl[2]!], { used: new Set(['Rumeli Kavağı']), historicNames: ['Rumeli Kavağı'] })).toBe('Rumeli Kavağı 2');
+  });
+
+  it('oyun alanı dışı tıklama ayrı sebeple reddedilir', () => {
+    const bbox = [28.9, 40.9, 29.1, 41.1] as const;
+    expect(evaluatePlacement(offsetM(O, 1000, 0), { coast, bbox, piers: [], noBuild: [] }).ok).toBe(true);
+    expect(evaluatePlacement([28.8, 41.0], { coast, bbox, piers: [], noBuild: [] })).toMatchObject({ reason: 'out-of-bounds' });
   });
 
   it('kullanılan ada sayı ekler', () => {
