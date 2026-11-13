@@ -10,6 +10,7 @@ import { placeHistoric, testWorld } from './testWorld.ts';
 function calm(state: ReturnType<typeof createGame>): void {
   state.weather = { kind: 'acik', from: 0, until: 1e9 };
   state.tanker = null;
+  state.settings.traffic = false;
 }
 
 function setup() {

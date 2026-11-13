@@ -6,7 +6,8 @@ import { AttributionControl, Map as MapLibreMap, NavigationControl, ScaleControl
 // bu yol kırılır. Worker'ı Vite'a asset olarak verip adresini açıkça bildiriyoruz.
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import type { Feature, FeatureCollection, Geometry, Point } from 'geojson';
-import { SHIP_TYPES } from '../config/balance.ts';
+import { SHIP_TYPES, TRAFFIC } from '../config/balance.ts';
+import { trafficPose } from '../sim/traffic.ts';
 import type { LngLat } from '../geo/geo.ts';
 import type { CityPack } from '../cityPack.ts';
 import type { Game } from '../game.ts';
@@ -46,6 +47,7 @@ export const LAYER = {
   line: 'vapur-line',
   ship: 'vapur-ship',
   yard: 'vapur-yard',
+  traffic: 'vapur-traffic',
 } as const;
 
 export interface GhostState {
@@ -126,6 +128,32 @@ function shipArrowImage(): ImageData {
   return g.getImageData(0, 0, size, size);
 }
 
+/** Transit gemi gövdesi (yukarı bakan uzun tekne), türün rengiyle. */
+function hullImage(color: string): ImageData {
+  const w = 24, h = 64;
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const g = c.getContext('2d')!;
+  g.beginPath();
+  g.moveTo(w / 2, 2);
+  g.quadraticCurveTo(w - 3, 14, w - 3, 26);
+  g.lineTo(w - 3, h - 4);
+  g.lineTo(3, h - 4);
+  g.lineTo(3, 26);
+  g.quadraticCurveTo(3, 14, w / 2, 2);
+  g.closePath();
+  g.fillStyle = color;
+  g.strokeStyle = 'rgba(20,30,40,0.9)';
+  g.lineWidth = 2;
+  g.fill();
+  g.stroke();
+  // Köprüüstü
+  g.fillStyle = 'rgba(255,255,255,0.85)';
+  g.fillRect(6, h - 18, w - 12, 8);
+  return g.getImageData(0, 0, w, h);
+}
+
 /** Tersane işareti: beyaz çapa. */
 function anchorImage(): ImageData {
   const size = 32;
@@ -158,6 +186,7 @@ function addGameLayers(map: MapLibreMap, pack: CityPack): void {
   if (waterIdx >= 0) map.setPaintProperty('water', 'fill-color', COLORS.waterOutside);
   map.addImage('ship-arrow', shipArrowImage(), { pixelRatio: 2 });
   map.addImage('yard-anchor', anchorImage(), { pixelRatio: 2 });
+  for (const [kind, spec] of Object.entries(TRAFFIC.kinds)) map.addImage(`traffic-${kind}`, hullImage(spec.color), { pixelRatio: 2 });
 
   for (const id of ['vapur-coverage', 'vapur-historic', 'vapur-piers', 'vapur-ghost', 'vapur-lines', 'vapur-ships', 'vapur-draft', 'vapur-tersane', 'vapur-overlay', 'vapur-stations', 'vapur-flows', 'vapur-traffic']) {
     map.addSource(id, { type: 'geojson', data: fc([]) });
@@ -336,6 +365,30 @@ function addGameLayers(map: MapLibreMap, pack: CityPack): void {
     paint: { 'text-color': ['get', 'color'], 'text-halo-color': '#fff', 'text-halo-width': 1.4 },
   });
 
+  // Boğaz transit trafiği
+  map.addLayer({
+    id: LAYER.traffic,
+    type: 'symbol',
+    source: 'vapur-traffic',
+    layout: {
+      'icon-image': ['concat', 'traffic-', ['get', 'kind']],
+      // Boy: gerçek uzunluğa yakın ölçek (zoom 15'te ~1:1), uzaktan da seçilsin.
+      'icon-size': ['interpolate', ['exponential', 2], ['zoom'], 10, ['*', ['get', 'len'], 0.0016], 15, ['*', ['get', 'len'], 0.006], 17, ['*', ['get', 'len'], 0.02]],
+      'icon-rotate': ['get', 'bearing'],
+      'icon-rotation-alignment': 'map',
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
+    },
+  });
+  map.addLayer({
+    id: 'vapur-traffic-label',
+    type: 'symbol',
+    source: 'vapur-traffic',
+    minzoom: 13.5,
+    layout: { 'text-field': ['get', 'name'], 'text-font': ['Noto Sans Italic'], 'text-size': 11, 'text-offset': [0, 1.6], 'text-anchor': 'top' },
+    paint: { 'text-color': '#495057', 'text-halo-color': '#fff', 'text-halo-width': 1.4 },
+  });
+
   // Gemiler
   map.addLayer({
     id: 'vapur-ship-dot',
@@ -432,6 +485,17 @@ export function renderNetwork(map: MapLibreMap, game: Game, opts: { showLoad: bo
   }
   source(map, 'vapur-lines').setData(fc(lineFeatures));
   source(map, 'vapur-tersane').setData(fc(state.yards.map((y) => point(y.coast, { id: y.id, label: y.name }))));
+}
+
+export function renderTraffic(map: MapLibreMap, game: Game, frac: number): void {
+  const features: Feature<Point>[] = [];
+  for (const t of game.state.traffic) {
+    const pose = trafficPose(game.world, t, frac);
+    if (!pose) continue;
+    const spec = TRAFFIC.kinds[t.kind];
+    features.push(point(pose.p, { id: t.id, kind: t.kind, name: t.name, len: spec.lengthM, bearing: (Math.atan2(pose.dir[0], pose.dir[1]) * 180) / Math.PI }));
+  }
+  source(map, 'vapur-traffic').setData(fc(features));
 }
 
 export function renderShips(map: MapLibreMap, game: Game, frac: number): void {

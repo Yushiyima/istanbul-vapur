@@ -21,6 +21,7 @@ import {
   setNight,
   upgradeBerths,
 } from './sim/network.ts';
+import { warmTraffic } from './sim/traffic.ts';
 import { buildYard, emptyCounters, ensureDefaultYard, previewYard, upgradeYardCapacity, upgradeYardSlots, yardById } from './sim/yards.ts';
 import { evaluatePlacement, findHistoricMatch, normalizeName, pickPierName, uniqueName, type PlacementResult } from './sim/piers.ts';
 import { createGame, dayIndex, inService } from './sim/state.ts';
@@ -62,6 +63,7 @@ export class Game {
     this.waterIndex = buildWaterIndex(pack.data.waterPolygons);
     this.state = state ? Game.normalize(state) : this.newState();
     ensureDefaultYard(this.state, this.world);
+    warmTraffic(this.state, this.world);
     this.lastSavedDay = dayIndex(this.state.minute);
   }
 
@@ -76,6 +78,7 @@ export class Game {
       hourAcc: { ...base.hourAcc, ...(saved.hourAcc ?? {}) },
       settings: { ...base.settings, ...(saved.settings ?? {}) },
       yards: saved.yards ?? [],
+      traffic: saved.traffic ?? [],
       notices: [],
     };
     // Eski kayıtlarda gemi bakım/istatistik alanları yok.
@@ -95,6 +98,7 @@ export class Game {
   replaceState(state: GameState): void {
     this.state = Game.normalize(state);
     this.migrateYards();
+    warmTraffic(this.state, this.world);
     this.world.routes = new RouteCache(this.world.grid);
     this.world.catchments.clear();
     this.world.od = null;
@@ -491,6 +495,12 @@ export class Game {
   setMaintThreshold(v: number): void {
     this.state.settings.maintThreshold = v;
     devLog('game', `otomatik bakım eşiği %${v}`);
+    this.changed();
+  }
+
+  setTraffic(on: boolean): void {
+    this.state.settings.traffic = on;
+    devLog('game', `Boğaz trafiği: ${on}`);
     this.changed();
   }
 

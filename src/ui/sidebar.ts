@@ -20,6 +20,7 @@ export interface SidebarHandlers {
   onSound?(on: boolean): void;
   onMaintThreshold?(v: number): void;
   onNightSkip?(on: boolean): void;
+  onTraffic?(on: boolean): void;
 }
 
 export function createSidebar(root: HTMLElement, game: Game, h: SidebarHandlers): { render(): void; refresh(): void } {
@@ -58,6 +59,8 @@ export function createSidebar(root: HTMLElement, game: Game, h: SidebarHandlers)
       h.onMaintThreshold?.(Number(el.value));
     } else if (el.name === 'nightSkip') {
       h.onNightSkip?.(el.checked);
+    } else if (el.name === 'traffic') {
+      h.onTraffic?.(el.checked);
     } else if (el.name === 'sound') {
       sound = el.checked;
       h.onSound?.(sound);
@@ -109,7 +112,8 @@ export function createSidebar(root: HTMLElement, game: Game, h: SidebarHandlers)
     const st = game.state.settings;
     const play = `<h5>Oyun</h5>
       <label>Otomatik bakım: <select name="maint">${MAINT.thresholdOptions.map((v) => `<option value="${v}"${v === st.maintThreshold ? ' selected' : ''}>${v ? `durum %${v} altına düşünce` : 'kapalı'}</option>`).join('')}</select></label>
-      <label><input type="checkbox" name="nightSkip"${st.nightSkip ? ' checked' : ''}> Gece seferi yoksa geceyi hızlı geç</label>`;
+      <label><input type="checkbox" name="nightSkip"${st.nightSkip ? ' checked' : ''}> Gece seferi yoksa geceyi hızlı geç</label>
+      <label><input type="checkbox" name="traffic"${st.traffic ? ' checked' : ''}> Boğaz gemi trafiği (vapurlar yol verir)</label>`;
     return `
       ${play}
       ${layers}

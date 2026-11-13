@@ -55,14 +55,8 @@ export function updateEvents(state: GameState, world: World): void {
     state.notices.push({ at: state.minute, kind: 'info', text: `☀ ${WEATHER_NAME[w.kind]} geçti, seferler normale döndü.` });
   }
 
-  if (state.tanker && state.minute >= state.tanker.until) state.tanker = null;
-  const hour = Math.floor(mod / 60);
-  if (!state.tanker && mod % 60 === 30 && hour >= EVENTS.tankerHours[0] && hour < EVENTS.tankerHours[1] && random(state) < EVENTS.tankerChancePerHour) {
-    const len = EVENTS.tankerMinutes[0] + Math.round(random(state) * (EVENTS.tankerMinutes[1] - EVENTS.tankerMinutes[0]));
-    state.tanker = { until: state.minute + len };
-    state.notices.push({ at: state.minute, kind: 'info', text: `🚢 Tanker geçiyor: Boğaz'ı enine kesen seferler ${len} dk bekleyecek.` });
-    if (random(state) < EVENTS.tankerFeedChance) pushFeed(state, world, 'tanker');
-  }
+  // Eski tanker olayı yerini gerçek Boğaz trafiğine bıraktı (traffic.ts).
+  state.tanker = null;
 }
 
 // ---------------------------------------------------------------- rota özellikleri
@@ -149,11 +143,10 @@ export function legExposed(state: GameState, world: World, line: Line, leg: numb
   return exposure >= EVENTS.exposureThreshold;
 }
 
-/** Bu bacakta kalkış serbest mi (lodos/poyraz iptali, tanker geçişi). */
+/** Bu bacakta kalkış serbest mi (lodos/poyraz iptali). Tanker trafiği seyirde kaçınmayla işlenir. */
 export function canDepart(state: GameState, world: World, line: Line, leg: number): boolean {
   const w = currentWeather(state);
   if ((w === 'lodos' || w === 'poyraz') && legExposed(state, world, line, leg, w)) return false;
-  if (state.tanker && crossesBosphorus(state, world, line, leg)) return false;
   return true;
 }
 

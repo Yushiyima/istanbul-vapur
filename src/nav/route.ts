@@ -95,7 +95,7 @@ class MinHeap {
 const SQRT2 = Math.SQRT2;
 
 /** İki su hücresi arası A*. Hücre indeksleri listesi ya da null. */
-export function astarCells(g: WaterGrid, start: number, goal: number): number[] | null {
+export function astarCells(g: WaterGrid, start: number, goal: number, cellCost?: (i: number) => number): number[] | null {
   if (start < 0 || goal < 0 || !g.water[start] || !g.water[goal]) return null;
   const n = g.cols * g.rows;
   const gScore = new Float64Array(n).fill(Infinity);
@@ -126,7 +126,7 @@ export function astarCells(g: WaterGrid, start: number, goal: number): number[] 
         if (!g.water[nb] || closed[nb]) continue;
         // Çapraz adımda köşe kesme yok: iki dik komşu da su olmalı.
         if (dr && dc && (!g.water[r * g.cols + cc] || !g.water[rr * g.cols + c])) continue;
-        const step = (dr && dc ? SQRT2 : 1) * (g.coast[nb] ? coastCost : 1);
+        const step = (dr && dc ? SQRT2 : 1) * (g.coast[nb] ? coastCost : 1) * (cellCost ? cellCost(nb) : 1);
         const tentative = gScore[cur]! + step;
         if (tentative < gScore[nb]!) {
           gScore[nb] = tentative;

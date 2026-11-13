@@ -255,11 +255,6 @@ export const EVENTS = {
   fogSpeedFactor: 0.6,
   /** Boğaz akıntısı: kuzeye giden gemi bu oranda yavaş, güneye giden hızlı. */
   currentStrength: 0.15,
-  tankerChancePerHour: 0.12,
-  /** Tanker geçişinin Peron'da paylaşılma olasılığı. */
-  tankerFeedChance: 0.4,
-  tankerMinutes: [12, 28],
-  tankerHours: [6, 22],
 } as const;
 
 // ---------------------------------------------------------------- Peron
@@ -278,6 +273,38 @@ export const SOUND = {
   /** Aynı anda en fazla bu sıklıkta düdük (ms). */
   hornMinGapMs: 2500,
   volume: 0.25,
+} as const;
+
+// ---------------------------------------------------------------- Boğaz trafiği
+
+export const TRAFFIC = {
+  /** Kanal uçları [lng, lat]: Karadeniz girişi ve Marmara (Ahırkapı açığı). */
+  northEnd: [29.135, 41.234],
+  southEnd: [28.985, 40.985],
+  /** Orta hatta çekim: kıyıya yakın hücre pahalı. */
+  centerPull: 8,
+  sampleEvery: 4,
+  /** Sağdan seyir şeridi kayması (m). */
+  laneOffsetM: 110,
+  /** Saatte ortalama kaç gemi Boğaz'a girer (gerçekte günde ~110). */
+  perHour: 4.5,
+  /** Açılışta kanalda kaç gemi olsun. */
+  warmCount: 8,
+  kinds: {
+    tanker: { label: 'Tanker', lengthM: 250, speedKn: 8, safetyM: 420, weight: 3, color: '#c92a2a', names: ['M/T Karadeniz Yıldızı', 'M/T Volga Spirit', 'M/T Anadolu', 'M/T Caspian Dawn', 'M/T Novorossiysk'] } as const,
+    konteyner: { label: 'Konteyner', lengthM: 230, speedKn: 12, safetyM: 360, weight: 3, color: '#1864ab', names: ['Marmara Express', 'Bosporus Bridge', 'Odessa Trader', 'Levant Star'] } as const,
+    dokme: { label: 'Dökme yük', lengthM: 190, speedKn: 10, safetyM: 320, weight: 3, color: '#795548', names: ['Ege Bulker', 'Danube Grain', 'Kerch Carrier', 'Sinop Ore'] } as const,
+    kruvaziyer: { label: 'Kruvaziyer', lengthM: 260, speedKn: 13, safetyM: 380, weight: 1, color: '#f8f9fa', names: ['Aegean Queen', 'Golden Horn Dream', 'Black Sea Pearl'] } as const,
+    koster: { label: 'Koster', lengthM: 90, speedKn: 11, safetyM: 200, weight: 2, color: '#495057', names: ['Kaptan Rıza', 'Hacı Bayram', 'Deniz Yıldızı', 'Rize Ekspres'] } as const,
+  },
+  /** Güvenlik mesafesinin bu katına kadar yavaşlama bölgesi. */
+  slowBand: 1.8,
+  slowFactor: 0.4,
+  /** En fazla yana sapma (m). */
+  sidestepM: 140,
+  tankerFeedChance: 0.25,
+  /** Bu kadar dakika yol veren vapur için Peron paylaşımı. */
+  feedAfterMin: 4,
 } as const;
 
 export const GOAL_RULES = {

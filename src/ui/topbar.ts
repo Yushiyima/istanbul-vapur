@@ -69,7 +69,11 @@ export function createTopbar(root: HTMLElement, game: Game): { refresh(): void; 
       const held = s.lines.filter((l) => [0, l.pierIds.length - 1].some((leg) => legExposed(s, game.world, l, leg, w))).length;
       if (held) parts.push(`${held} hat iskelede bekliyor`);
     }
-    if (s.tanker) parts.push('🚢 Tanker geçiyor');
+    if (s.traffic.length) {
+      const big = s.traffic.filter((t) => t.kind === 'tanker').length;
+      const yielding = s.ships.filter((sh) => (sh.yielding ?? 0) > 0).length;
+      parts.push(`🚢 Boğaz: ${s.traffic.length} gemi${big ? ` (${big} tanker)` : ''}${yielding ? ` · ${yielding} vapur yol veriyor` : ''}`);
+    }
     set('.tb-weather', parts.filter(Boolean).join(' · '));
   }
 

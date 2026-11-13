@@ -17,6 +17,7 @@ import { offsetM, type LngLat } from '../geo/geo.ts';
 import { canDepart, speedFactor, updateEvents } from './events.ts';
 import { alightAt, boardAt, generateDemand, noteMissed, requeueOnboard, updateEconomyAndSatisfaction } from './passengers.ts';
 import { breakDown, conditionSpeedFactor, needsMaintenance, rollBreakdown, sendToYard, tickYards, wear } from './yards.ts';
+import { applyAvoidance, avoidance, tickTraffic } from './traffic.ts';
 import { inService } from './state.ts';
 import type { GameState, Line, Ship } from './types.ts';
 import { legCount, legEnds, legRoute, pierById, type World } from './world.ts';
@@ -24,6 +25,7 @@ import { legCount, legEnds, legRoute, pierById, type World } from './world.ts';
 export function tick(state: GameState, world: World): void {
   state.minute += 1;
   updateEvents(state, world);
+  tickTraffic(state, world);
   generateDemand(state, world);
 
   for (const ship of state.ships) ship.prevDist = ship.dist;
@@ -77,7 +79,12 @@ function moveShip(state: GameState, world: World, line: Line, ship: Ship): void 
   if (ship.status !== 'sailing') return;
   const route = legRoute(world, state, line, ship.leg);
   if (!route) return;
-  ship.dist += shipSpeed(ship) * speedFactor(state, world, route, ship.dist);
+  const step = shipSpeed(ship) * speedFactor(state, world, route, ship.dist);
+  // Boğaz trafiği: güvenlik mesafesine giren gemiye yol ver (yavaşla/dur, yana kay).
+  const here = pointAlong(route, ship.dist);
+  const avoid = avoidance(state, world, here.p, here.dir, step);
+  applyAvoidance(state, world, ship, avoid);
+  ship.dist += step * avoid.factor;
   if (ship.dist >= route.lengthM) {
     ship.dist = route.lengthM;
     wear(ship, ship.dist - ship.prevDist);
@@ -190,7 +197,8 @@ export function shipPose(state: GameState, world: World, ship: Ship, frac: numbe
     const { p, dir } = pointAlong(route, d);
     // Sağdan seyir: karşılıklı geçen gemiler üst üste binmesin (uçlarda sıfıra iner).
     const k = Math.min(1, d / 200, (route.lengthM - d) / 200);
-    return { p: offsetM(p, dir[1] * PASSING_OFFSET_M * k, -dir[0] * PASSING_OFFSET_M * k), bearing: toBearing(dir), moving: true };
+    const side = PASSING_OFFSET_M * k + (ship.sidestep ?? 0);
+    return { p: offsetM(p, dir[1] * side, -dir[0] * side), bearing: toBearing(dir), moving: true };
   }
   if (ship.status === 'maintenance') {
     const yard = state.yards.find((y) => y.id === ship.yardId);

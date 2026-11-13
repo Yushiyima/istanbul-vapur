@@ -5,6 +5,19 @@ import type { LngLat } from '../geo/geo.ts';
 
 export type Side = 'avrupa' | 'anadolu' | 'ada';
 export type ShipTypeId = 'vapur' | 'denizOtobusu' | 'arabali';
+export type TrafficKind = 'tanker' | 'konteyner' | 'dokme' | 'kruvaziyer' | 'koster';
+
+/** Boğaz'dan geçen transit gemi (oyuncunun değil). */
+export interface TrafficShip {
+  id: string;
+  kind: TrafficKind;
+  name: string;
+  /** 1: Karadeniz → Marmara, -1: Marmara → Karadeniz. */
+  dir: 1 | -1;
+  dist: number;
+  prevDist: number;
+  speedMul: number;
+}
 
 export interface Pier {
   id: string;
@@ -95,6 +108,10 @@ export interface Ship {
   broken?: boolean;
   /** Oyuncu bakım istedi: bir sonraki yanaşmada tersaneye gider. */
   maintRequested?: boolean;
+  /** Trafikten kaçınma: rotadan yana sapma (m, + sağ). */
+  sidestep?: number;
+  /** Kaç dakikadır bir gemiye yol veriyor. */
+  yielding?: number;
   total: ShipCounters;
   today: ShipCounters;
 }
@@ -104,6 +121,8 @@ export interface Settings {
   maintThreshold: number;
   /** Gece seferi olmayan saatleri hızlı geç. */
   nightSkip: boolean;
+  /** Boğaz transit trafiği açık mı. */
+  traffic: boolean;
 }
 
 /** İskelede bekleyen yolcu grubu. */
@@ -142,6 +161,8 @@ export interface DayStats {
   waitSum: number;
   waitCount: number;
   journeys: number;
+  /** Vapurların transit gemilere yol vererek beklediği dakikalar. */
+  yieldMinutes?: number;
 }
 
 export interface LineStats {
@@ -220,6 +241,7 @@ export interface GameState {
   notices: Notice[];
   yards: Yard[];
   settings: Settings;
+  traffic: TrafficShip[];
   /** Yıl sonu özeti bekliyor mu (arayüz gösterince temizler). */
   pendingYearSummary: null | { year: number; revenue: number; costs: number; boardings: number; satisfaction: number; rewards: number };
 }

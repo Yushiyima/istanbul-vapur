@@ -33,13 +33,12 @@ describe('hava ve olaylar', () => {
     expect(canDepart(state, world, ka, 0)).toBe(true);
   });
 
-  it('tanker Boğaz’ı enine kesen bacağı bekletir', () => {
+  it('Boğaz’ı enine kesen bacak tanınır; eski tanker olayı kalkışı engellemez', () => {
     const { state, bu, ka } = net();
     expect(crossesBosphorus(state, world, bu, 0)).toBe(true);
     expect(crossesBosphorus(state, world, ka, 0)).toBe(false);
     state.tanker = { until: state.minute + 20 };
-    expect(canDepart(state, world, bu, 0)).toBe(false);
-    expect(canDepart(state, world, ka, 0)).toBe(true);
+    expect(canDepart(state, world, bu, 0)).toBe(true);
   });
 
   it('akıntı: Boğaz’da güneye giden hızlı, kuzeye giden yavaş; sis yavaşlatır', () => {

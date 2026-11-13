@@ -1,12 +1,12 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './style.css';
 import { Popup, type MapLayerMouseEvent, type MapMouseEvent, type Map as MapLibreMap } from 'maplibre-gl';
-import { MAINT, PIER, SHIP_TYPES, TERSANE, TIME } from './config/balance.ts';
+import { MAINT, PIER, SHIP_TYPES, TERSANE, TIME, TRAFFIC } from './config/balance.ts';
 import { loadCityPack } from './cityPack.ts';
 import { devLog, installDevLogBridge } from './devlog.ts';
 import { Game } from './game.ts';
 import type { LngLat } from './geo/geo.ts';
-import { createMap, LAYER, renderDraft, renderGhost, renderNetwork, renderShips, setCoverageVisible, setFlows, setNoBuildEmphasis, setOverlay, setStations } from './map/mapView.ts';
+import { createMap, LAYER, renderDraft, renderGhost, renderNetwork, renderShips, renderTraffic, setCoverageVisible, setFlows, setNoBuildEmphasis, setOverlay, setStations } from './map/mapView.ts';
 import { flowData, overlayData, stationData } from './map/overlay.ts';
 import { horn, setSound } from './ui/sound.ts';
 import { currentWeather } from './sim/events.ts';
@@ -14,7 +14,8 @@ import { waitingCount } from './sim/passengers.ts';
 import { catchmentOf } from './sim/catchment.ts';
 import { fmtMoney } from './sim/network.ts';
 import { berthsInUse, shipPose } from './sim/tick.ts';
-import type { Pier, Ship, Yard } from './sim/types.ts';
+import type { Pier, Ship, TrafficShip, Yard } from './sim/types.ts';
+import { trafficPose } from './sim/traffic.ts';
 import { fleetCapacity, shipsAtYard } from './sim/yards.ts';
 import { escapeHtml } from './ui/html.ts';
 import { createPanel } from './ui/panel.ts';
@@ -78,6 +79,7 @@ async function main(): Promise<void> {
     onSound: (on) => setSound(on),
     onMaintThreshold: (v) => game.setMaintThreshold(v),
     onNightSkip: (on) => game.setNightSkip(on),
+    onTraffic: (on) => game.setTraffic(on),
   });
   const view: { showLoad: boolean; layer: string } = { showLoad: false, layer: 'none' };
   // Kalkışta düdük: gemi durumu yanaşmışken seyre geçtiyse ve ekrandaysa.
@@ -127,7 +129,7 @@ async function main(): Promise<void> {
       .addTo(map);
   });
   map.on('mouseleave', LAYER.historic, () => hoverPopup.remove());
-  for (const layer of [LAYER.pier, LAYER.ship, LAYER.yard]) {
+  for (const layer of [LAYER.pier, LAYER.ship, LAYER.yard, LAYER.traffic]) {
     map.on('mouseenter', layer, () => (map.getCanvas().style.cursor = 'pointer'));
     map.on('mouseleave', layer, () => redraw());
   }
@@ -184,6 +186,8 @@ async function main(): Promise<void> {
     if (ship) return openShipPopup(ship);
     const yard = featureAt(map, ev, LAYER.yard, (id) => game.state.yards.find((y) => y.id === id));
     if (yard) return openYardPopup(yard);
+    const tr = featureAt(map, ev, LAYER.traffic, (id) => game.state.traffic.find((t) => t.id === id));
+    if (tr) return openTrafficPopup(tr);
     if (game.tool === 'pier') game.placePier([ev.lngLat.lng, ev.lngLat.lat]);
     else if (game.tool === 'yard') game.placeYard([ev.lngLat.lng, ev.lngLat.lat]);
   });
@@ -301,6 +305,22 @@ async function main(): Promise<void> {
     if (el && !el.matches(':hover')) el.innerHTML = shipPopupHtml(ship);
   }
 
+  function openTrafficPopup(t: TrafficShip): void {
+    const spec = TRAFFIC.kinds[t.kind];
+    const pose = trafficPose(game.world, t);
+    if (!pose) return;
+    const yielding = game.state.ships.filter((s) => (s.yielding ?? 0) > 0).length;
+    const el = document.createElement('div');
+    el.className = 'pier-popup';
+    el.innerHTML = `
+      <h3>${escapeHtml(t.name)}</h3>
+      <p class="tag-row"><span class="tag">${spec.label}</span><span class="tag side">${t.dir === 1 ? 'Karadeniz → Marmara' : 'Marmara → Karadeniz'}</span></p>
+      <p>Boy ~${spec.lengthM} m · ${spec.speedKn} kn</p>
+      <p class="small">Vapurlar bu gemiye ${spec.safetyM} m'den fazla yaklaşmaz: yavaşlar, durur ya da yana sapar.${yielding ? ` Şu an ${yielding} vapur yol veriyor.` : ''}</p>`;
+    shipPopupId = null;
+    infoPopup.setLngLat(pose.p).setDOMContent(el).addTo(map);
+  }
+
   function openYardPopup(yard: Yard): void {
     const { state } = game;
     const at = shipsAtYard(state, yard.id);
@@ -371,6 +391,7 @@ async function main(): Promise<void> {
     if (now - lastShips > 33) {
       try {
         renderShips(map, game, frac);
+        renderTraffic(map, game, frac);
         hornOnDepartures();
       } catch (err) {
         if (slowFrames++ < PERF_MAX_LOGS) devLog('error', 'gemi çizimi hatası:', err);

@@ -86,3 +86,11 @@ Belirsiz tasarım kararları ve gerekçeleri, her biri bir satır.
 - **Tersaneler** artık oyun durumunda: Haliç Tersanesi (kapasite 6, 2 yuva) başlangıçta var. Oyuncu kıyıya yeni tersane kurabiliyor (4 M ₺, +4 kapasite, 1 yuva). Kurallar iskeleyle aynı, iskele/tersaneye 400 m'den yakın olamaz. Filo kapasitesi = tersanelerin toplamı. Yeni gemi ve bakım en yakın tersaneye gidiyor. Eski kayıtlardaki tek kapasite değeri Haliç Tersanesi'ne aktarılıyor.
 - **Gemi istatistikleri:** bugün/toplam sefer, yolcu, gelir, ortalama doluluk, mesafe; yaş; durum çubuğu. Popup gemiyle birlikte hareket ediyor ve canlı güncelleniyor.
 - **Gece:** "Geceyi hızlı geç" açıkken gece seferi olan hat yoksa 23:30–06:00 arası 24× hızla geçiliyor.
+
+## Boğaz trafiği
+
+- **Kanal:** Karadeniz girişinden (29,135 D, 41,234 K) Ahırkapı açığına (28,985 D, 40,985 K) A* ile; hücre maliyeti 1 + 8/(1 + karaya uzaklık) olduğu için orta hattan gidiyor. Her 4 hücreden biri örnekleniyor. İki şerit orta hattın 110 m sağında (sağdan seyir); kara çıkarsa kayma azaltılıyor.
+- **Gemiler:** tanker (250 m, 8 kn, güvenlik 420 m), konteyner, dökme yük, kruvaziyer, koster. Saatte ortalama 4,5 gemi (gerçekte günde ~110). Açılışta kanalda 8 gemi.
+- **Kaçınma:** vapur her dakika önündeki noktaya (bir dakikalık yol, en az 60 m) ve trafik gemisinin bir dakika sonraki konumuna bakıyor. Güvenlik mesafesi içindeyse duruyor, 1,8 katına kadar %40 hızla gidiyor. Çizimde gemiden uzak tarafa en fazla 140 m sapıyor (yumuşak geçişle). Sadece hat seferlerinde; tersane transitleri kaçınmıyor.
+- **Eski tanker olayı** kaldırıldı: artık kalkışı engelleyen bir olay yok, etkisi seyirde. Bekleme dakikaları günlük istatistikte (`yieldMinutes`), üst barda "Boğaz: N gemi · M vapur yol veriyor".
+- **Ayar:** menüden Boğaz trafiği kapatılabiliyor. Tarife testleri trafiği kapatıp çalışıyor.

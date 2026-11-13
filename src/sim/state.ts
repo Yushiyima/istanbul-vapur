@@ -34,7 +34,8 @@ export function createGame(seed: number): GameState {
     feed: [],
     notices: [],
     yards: [],
-    settings: { maintThreshold: MAINT.defaultThreshold, nightSkip: false },
+    traffic: [],
+    settings: { maintThreshold: MAINT.defaultThreshold, nightSkip: false, traffic: true },
     pendingYearSummary: null,
   };
 }

@@ -77,6 +77,8 @@ export interface World {
   cellComp: Int32Array | null;
   /** İskele havzası önbelleği: pierId → hücre indeksleri ve ağırlıklar. */
   catchments: Map<string, { cells: number[]; weights: number[]; pop: number; att: number }>;
+  /** Boğaz trafik kanalı (ilk kullanımda kurulur; null = kurulamadı). */
+  channel?: import('./traffic.ts').Channel | null;
   /** Talep tablosu önbelleği (ağ değişince yeniden kurulur, bkz. passengers.ts). */
   od: { sig: string; pairs: unknown[]; byKey: Map<string, unknown> } | null;
 }

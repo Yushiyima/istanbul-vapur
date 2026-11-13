@@ -16,7 +16,7 @@ Açık işler. Bitince `[x]` yap ya da sil; tasarım kararıysa `DECISIONS.md`'y
   çizgisi; su poligonu sadece kıyıdan kurulduğu için ızgarada su sayılıyor. Çözüm: veri scriptine
   bu çizgileri ekle (`data/breakwaters.geojson`), su ızgarasında ~20 m tamponla kara işaretle,
   rota testine "Kadıköy rotası dalgakıranı kesmez" ekle. (Haydarpaşa mendireği, Yenikapı, Ataköy …)
-- [ ] **Boğaz'da gerçek gemi trafiği.** Şu an tanker sadece "Boğaz'ı kesen kalkışları bekleten"
+- [x] **Boğaz'da gerçek gemi trafiği.** Şu an tanker sadece "Boğaz'ı kesen kalkışları bekleten"
   bir olay; vapurlar çalışıyor, rotaları değişmiyor. İstenen: Boğaz boyunca akan transit gemiler
   (tanker, konteyner, dökme yük, yolcu; farklı boy ve hız), haritada görünsün; vapur bir gemiye
   fazla yaklaşırsa yavaşlasın / beklesin / rotasını yerel olarak değiştirsin (çarpışmadan kaçınma).
