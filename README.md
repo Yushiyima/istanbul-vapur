@@ -61,6 +61,18 @@ veri scriptini çalıştırman gerekmez.
 - **☰ menüsü → Katmanlar:** nüfus, çekim (H3 altıgenleri), hat doluluğu; kapsama alanlarını aç/kapa.
 - **Ses:** ☰ → Vapur düdüğü. Ekrandaki bir gemi kalkınca düdük çalar.
 
+## Oynanış (sonraki eklemeler)
+
+- **Tersane (T):** kıyıya yeni tersane kur (+4 gemi kapasitesi, bakım yuvası). Tersaneye tıklayınca kapasite ve yuva büyütülür. Yeni gemi ve bakım en yakın tersaneye gider.
+- **Bakım:** gemiler seyrettikçe yıpranır, yavaşlar; %30'un altında arıza riski var. Otomatik bakım eşiği ☰ menüsünde. Gemiye tıklayınca istatistikler (sefer, yolcu, gelir, doluluk, mesafe, yaş, durum) ve "Bakıma gönder".
+- **Boğaz trafiği:** tanker, konteyner, dökme yük, kruvaziyer ve koster gemileri Boğaz'dan geçer. Vapurlar güvenlik mesafesine girince yavaşlar, durur ya da yana sapar. ☰ menüsünden kapatılabilir.
+- **Dalgakıranlar** rotada engel; haritada gri çizgi.
+- **Hat düzenleme:** hat kartında ✎ Düzenle. Yeni iskele en uygun yere eklenir, taslaktaki iskeleye tıklamak onu çıkarır.
+- **Arabalı vapur:** tüm iskelelerinde araç rampası olan hatta çalışır (rampa iskele popup'ından kurulur), Avrupa–Anadolu geçişinde araç geliri getirir.
+- **Katmanlar:** raylı sistem istasyonları (400 m aktarma halkası), talep akışları (iskele çiftleri arası potansiyel yolcu; yeşil bağlı, turuncu bağlı değil).
+- **Geceyi hızlı geç:** gece seferi yoksa 23:30–06:00 arası hızlı geçer.
+- **Telefon:** sol panel "☰ Araçlar" düğmesiyle açılır.
+
 ## Kısayollar
 
 | Tuş | İş |
@@ -68,6 +80,7 @@ veri scriptini çalıştırman gerekmez.
 | G / Esc | Gez aracı (hat taslağında Esc iptal) |
 | İ | İskele aracı |
 | H | Hat aracı · Enter: bitir · Backspace: geri al |
+| T | Tersane aracı |
 | Boşluk | Duraklat / devam |
 | 1–4 | 1× 2× 4× 8× hız |
 

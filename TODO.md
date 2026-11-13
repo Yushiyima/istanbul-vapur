@@ -37,14 +37,14 @@ Açık işler. Bitince `[x]` yap ya da sil; tasarım kararıysa `DECISIONS.md`'y
 - [x] **Reddedilen yolcu çift sayılıyor:** aynı grup her kalkışta yeniden "reddedilen" sayılıyor;
   istatistik şişiyor, memnuniyetteki kalabalık puanı sert. Grup başına bir kez saymak daha doğru.
 - [x] **Tur süresi akıntısız:** gereken gemi hesabı Boğaz akıntısını ve sisi hesaba katmıyor.
-- [ ] **Yıl uzunluğu:** 12 oyun günü = 1 yıl (bir gün bir ay). Oynanınca kısa/uzun geliyorsa ayarla.
+- [ ] **Yıl uzunluğu:** *(oynanarak karar verilecek)* 12 oyun günü = 1 yıl (bir gün bir ay). Oynanınca kısa/uzun geliyorsa ayarla.
 - [x] **Gece:** 23:30–06:00 arası gece hattı yoksa ekran durgun; isteğe bağlı "geceyi hızlı geç".
 
 ### Teknik
 - [x] **Kapsama hesabı** iskele başına ~25 ms (daire − tüm deniz poligonu). Su poligonunu
   bir kez parçalara bölmek hızlandırır.
 - [x] **Mobil/dokunmatik arayüz:** paneller küçük ekranda sıkışık, sürükle-bırak yok.
-- [ ] **Yayın:** yerel ağda (`vite --host`) ya da GitHub Pages'te yayınlama.
+- [ ] **Yayın:** yerel ağda (`vite --host`) ya da GitHub Pages'te yayınlama. *(Pages'i açmak herkese açık bir site oluşturduğu için kullanıcı onayı bekliyor.)*
 
 ## Kapandı: İskele (Aşama 1 düzeltmeleri)
 
