@@ -141,10 +141,22 @@ function addGameLayers(map: MapLibreMap, pack: CityPack): void {
   map.addSource('vapur-water', { type: 'geojson', data: pack.water });
   map.addSource('vapur-coast', { type: 'geojson', data: pack.coastline });
   map.addSource('vapur-nobuild', { type: 'geojson', data: pack.noBuild });
+  map.addSource('vapur-breakwater', { type: 'geojson', data: pack.breakwaters });
 
   map.addLayer({ id: 'vapur-water-fill', type: 'fill', source: 'vapur-water', paint: { 'fill-color': COLORS.water } }, belowWater);
   map.addLayer(
     { id: 'vapur-coast-line', type: 'line', source: 'vapur-coast', paint: { 'line-color': COLORS.coast, 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 0.5, 15, 1.5] } },
+    belowWater,
+  );
+
+  map.addLayer(
+    {
+      id: 'vapur-breakwater-line',
+      type: 'line',
+      source: 'vapur-breakwater',
+      layout: { 'line-cap': 'round' },
+      paint: { 'line-color': '#5f6b76', 'line-width': ['interpolate', ['linear'], ['zoom'], 11, 1, 16, 4] },
+    },
     belowWater,
   );
 

@@ -44,6 +44,8 @@ export interface CityData {
   bbox: BBox;
   coastLines: LngLat[][];
   waterPolygons: PolygonCoords[];
+  /** Dalgakıran/mahmuz çizgileri (gemiler geçemez). */
+  barriers: LngLat[][];
   noBuildZones: NoBuildZone[];
   zones: Zone[];
   historic: HistoricPier[];
@@ -81,7 +83,7 @@ export interface World {
 
 export function createWorld(data: CityData): World {
   const coast = buildCoastIndex(data.coastLines);
-  const grid = buildWaterGrid(data.waterPolygons, data.bbox, NAV.cellM);
+  const grid = buildWaterGrid(data.waterPolygons, data.bbox, NAV.cellM, data.barriers);
   const warnings: string[] = [];
   const historic: HistoricSite[] = [];
   for (const h of data.historic) {

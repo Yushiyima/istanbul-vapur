@@ -27,6 +27,8 @@ export function buildWaterGrid(
   water: readonly PolygonCoords[],
   bbox: readonly [number, number, number, number],
   cellM: number,
+  /** Dalgakıran gibi ince engeller: geçtikleri hücreler kara sayılır. */
+  barriers: readonly LngLat[][] = [],
 ): WaterGrid {
   const [W, S, E, N] = bbox;
   const dLat = cellM / M_PER_DEG_LAT;
@@ -62,6 +64,21 @@ export function buildWaterGrid(
       const c0 = Math.max(0, Math.ceil((xs[k]! - W) / dLng - 0.5));
       const c1 = Math.min(cols - 1, Math.floor((xs[k + 1]! - W) / dLng - 0.5));
       for (let c = c0; c <= c1; c++) waterArr[r * cols + c] = 1;
+    }
+  }
+
+  // Engelleri yarım hücre adımlarla örnekleyip geçtikleri hücreleri karaya çevir.
+  for (const line of barriers) {
+    for (let i = 0; i + 1 < line.length; i++) {
+      const a = line[i]!, b = line[i + 1]!;
+      const lenM = Math.hypot((b[0] - a[0]) * mPerDegLng(a[1]), (b[1] - a[1]) * M_PER_DEG_LAT);
+      const steps = Math.max(1, Math.ceil(lenM / (cellM * 0.3)));
+      for (let k = 0; k <= steps; k++) {
+        const t = k / steps;
+        const c = Math.floor((a[0] + (b[0] - a[0]) * t - W) / dLng);
+        const r = Math.floor((N - (a[1] + (b[1] - a[1]) * t)) / dLat);
+        if (c >= 0 && r >= 0 && c < cols && r < rows) waterArr[r * cols + c] = 0;
+      }
     }
   }
 

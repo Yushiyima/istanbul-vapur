@@ -17,6 +17,7 @@ export function loadTestData(): CityData {
     bbox: read('region.json').bbox,
     coastLines: read('coastline.geojson').features.flatMap((f: { geometry: { coordinates: LngLat[][] } }) => f.geometry.coordinates),
     waterPolygons: read('water.geojson').features[0].geometry.coordinates as PolygonCoords[],
+    barriers: fc('breakwaters.geojson').features.flatMap((f: { geometry: { coordinates: LngLat[][] } }) => f.geometry.coordinates),
     noBuildZones: fc('no_build.geojson').features.map((f: { properties: { id: string; name: string }; geometry: { coordinates: PolygonCoords } }) => ({
       id: f.properties.id,
       name: f.properties.name,

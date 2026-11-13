@@ -11,7 +11,7 @@ Açık işler. Bitince `[x]` yap ya da sil; tasarım kararıysa `DECISIONS.md`'y
 - [ ] **Hat düzenleme:** hatta iskele ekle/çıkar, sıra değiştir. Şu an kapatıp yeniden açmak gerekiyor.
 
 ### Kullanıcı istekleri (2026-11-14)
-- [ ] **Dalgakıranlar engel olsun.** Kadıköy'e giden gemiler önündeki dalgakıranın içinden geçiyor.
+- [x] **Dalgakıranlar engel olsun.** Kadıköy'e giden gemiler önündeki dalgakıranın içinden geçiyor.
   Neden: OSM'de dalgakıran/mendirek `natural=coastline` değil, `man_made=breakwater|groyne|pier`
   çizgisi; su poligonu sadece kıyıdan kurulduğu için ızgarada su sayılıyor. Çözüm: veri scriptine
   bu çizgileri ekle (`data/breakwaters.geojson`), su ızgarasında ~20 m tamponla kara işaretle,

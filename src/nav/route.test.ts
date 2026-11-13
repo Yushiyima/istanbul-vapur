@@ -11,7 +11,14 @@ const region = read('region.json');
 const waterPolys: PolygonCoords[] = read('water.geojson').features[0].geometry.coordinates;
 const coast = buildCoastIndex(read('coastline.geojson').features[0].geometry.coordinates);
 const historic: { id: string; lat: number; lng: number }[] = read('historic_piers.json').piers;
-const grid = buildWaterGrid(waterPolys, region.bbox, NAV.cellM);
+const breakwaters: LngLat[][] = read('breakwaters.geojson').features[0].geometry.coordinates;
+const grid = buildWaterGrid(waterPolys, region.bbox, NAV.cellM, breakwaters);
+
+/** İki doğru parçası kesişiyor mu (düzlemde yeterli). */
+function segmentsCross(p1: LngLat, p2: LngLat, q1: LngLat, q2: LngLat): boolean {
+  const o = (a: LngLat, b: LngLat, c: LngLat) => Math.sign((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]));
+  return o(p1, p2, q1) !== o(p1, p2, q2) && o(q1, q2, p1) !== o(q1, q2, p2);
+}
 
 const dock = (id: string): LngLat => {
   const h = historic.find((x) => x.id === id)!;
@@ -60,6 +67,20 @@ describe('su üstü rota', () => {
       }
       // Sadeleştirme işe yaramış
       expect(r!.points.length).toBeLessThan(r!.lengthM / NAV.cellM / 2);
+    });
+  }
+
+  for (const [a, b] of [['eminonu', 'kadikoy'], ['karakoy', 'haydarpasa'], ['kadikoy', 'bostanci'], ['uskudar', 'kadikoy']] as const) {
+    it(`${a} → ${b} rotası dalgakıranları kesmez`, () => {
+      const r = findWaterRoute(grid, dock(a), dock(b))!;
+      expect(r).not.toBeNull();
+      for (let i = 0; i + 1 < r.points.length; i++) {
+        for (const bw of breakwaters) {
+          for (let j = 0; j + 1 < bw.length; j++) {
+            expect(segmentsCross(r.points[i]!, r.points[i + 1]!, bw[j]!, bw[j + 1]!), `${a}-${b} segment ${i} × dalgakıran`).toBe(false);
+          }
+        }
+      }
     });
   }
 

@@ -359,8 +359,11 @@ const p = FETCH_PAD_DEG;
 const coastQuery = `[out:json][timeout:240];way["natural"="coastline"](${S - p},${W - p},${N + p},${E + p});out body geom;`;
 const placeQuery = `[out:json][timeout:180];nwr["place"~"^(${PLACE_TYPES.join('|')})$"]["name"](${S},${W},${N},${E});out center tags;`;
 
+const breakwaterQuery = `[out:json][timeout:180];way["man_made"~"^(breakwater|groyne)$"](${S},${W},${N},${E});out geom;`;
+
 const coastOsm = await cached('coastline-osm.json', coastQuery, 'Kıyı çizgisi');
 const placesOsm = await cached('places-osm.json', placeQuery, 'Yer adları');
+const breakwaterOsm = await cached('breakwaters-osm.json', breakwaterQuery, 'Dalgakıranlar');
 const osmDate = coastOsm.osm3s?.timestamp_osm_base ?? null;
 
 console.log('Kıyı işleniyor...');
@@ -378,6 +381,19 @@ await fs.writeFile(
   JSON.stringify({ type: 'FeatureCollection', features: [{ type: 'Feature', properties: meta, geometry: { type: 'MultiPolygon', coordinates: waterCoords } }] }),
 );
 await fs.writeFile(path.join(DATA, 'places.json'), JSON.stringify({ ...meta, source: 'OpenStreetMap place=*', places }, null, 0));
+
+// Dalgakıran / mahmuz: kıyı çizgisi değil ama gemiler geçemez. Su ızgarasında kara sayılır.
+const breakwaters = breakwaterOsm.elements
+  .filter((e) => e.type === 'way' && e.geometry?.length >= 2)
+  .map((e) => simplify(e.geometry.map((g) => [g.lon, g.lat]), 2).map(round6));
+await fs.writeFile(
+  path.join(DATA, 'breakwaters.geojson'),
+  JSON.stringify({
+    type: 'FeatureCollection',
+    features: [{ type: 'Feature', properties: { ...meta, source: 'OpenStreetMap man_made=breakwater|groyne' }, geometry: { type: 'MultiLineString', coordinates: breakwaters } }],
+  }),
+);
+console.log(`Dalgakıran: ${breakwaters.length} çizgi`);
 
 const pts = lines.reduce((s, l) => s + l.length, 0);
 console.log(`Tamam: ${lines.length} kıyı çizgisi (${pts} nokta), ${waterCoords.length} su poligonu, ${places.length} yer adı.`);

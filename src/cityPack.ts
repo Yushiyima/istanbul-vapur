@@ -14,7 +14,7 @@ import type { HistoricPier, Place } from './sim/piers.ts';
 import type { BBox, CellData, CityData, NoBuildZone, Station, Zone } from './sim/world.ts';
 
 /** İsteğe bağlı veri dosyaları (veri scripti çalışmadıysa yoktur). */
-const optional = import.meta.glob<string>(['../data/zones.geojson', '../data/stations.json', '../data/cells.json'], {
+const optional = import.meta.glob<string>(['../data/zones.geojson', '../data/stations.json', '../data/cells.json', '../data/breakwaters.geojson'], {
   query: '?url',
   import: 'default',
   eager: true,
@@ -26,6 +26,7 @@ export interface CityPack {
   coastline: FeatureCollection;
   noBuild: FeatureCollection;
   zones: FeatureCollection;
+  breakwaters: FeatureCollection;
 }
 
 async function fetchJson<T>(url: string): Promise<T> {
@@ -54,14 +55,20 @@ function polygons<T extends { id: string; name: string; polygon: PolygonCoords }
 
 export async function loadCityPack(): Promise<CityPack> {
   const empty: FeatureCollection = { type: 'FeatureCollection', features: [] };
-  const [water, coastline, noBuild, zones, stations, cells] = await Promise.all([
+  const [water, coastline, noBuild, zones, stations, cells, breakwaters] = await Promise.all([
     fetchJson<FeatureCollection>(waterUrl),
     fetchJson<FeatureCollection>(coastlineUrl),
     fetchJson<FeatureCollection>(noBuildUrl),
     fetchOptional<FeatureCollection>('../data/zones.geojson', empty),
     fetchOptional<{ stations: Station[] }>('../data/stations.json', { stations: [] }),
     fetchOptional<CellData | null>('../data/cells.json', null),
+    fetchOptional<FeatureCollection>('../data/breakwaters.geojson', empty),
   ]);
+  const barriers: LngLat[][] = [];
+  for (const f of breakwaters.features) {
+    if (f.geometry.type === 'LineString') barriers.push(f.geometry.coordinates as LngLat[]);
+    else if (f.geometry.type === 'MultiLineString') barriers.push(...(f.geometry.coordinates as LngLat[][]));
+  }
 
   const coastLines: LngLat[][] = [];
   for (const f of coastline.features) {
@@ -78,6 +85,7 @@ export async function loadCityPack(): Promise<CityPack> {
     bbox: regionJson.bbox as BBox,
     coastLines,
     waterPolygons,
+    barriers,
     noBuildZones: polygons<NoBuildZone>(noBuild),
     zones: polygons<Zone>(zones),
     historic: historicJson.piers as HistoricPier[],
@@ -85,5 +93,5 @@ export async function loadCityPack(): Promise<CityPack> {
     stations: stations.stations,
     cells,
   };
-  return { data, water, coastline, noBuild, zones };
+  return { data, water, coastline, noBuild, zones, breakwaters };
 }
