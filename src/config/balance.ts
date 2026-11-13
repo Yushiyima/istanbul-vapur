@@ -71,6 +71,8 @@ export const LINE = {
   dwellMin: 3,
   /** Terminalde en az dönüş süresi. */
   turnaroundMin: 5,
+  /** Gereken gemi hesabında tarifeye denk gelme payı (dk). */
+  scheduleSlackMin: 2,
   colors: ['#e8590c', '#1971c2', '#2f9e44', '#9c36b5', '#c2255c', '#0c8599', '#f08c00', '#5c940d', '#3b5bdb', '#a61e4d'],
 } as const;
 

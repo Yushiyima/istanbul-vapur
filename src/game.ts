@@ -15,6 +15,7 @@ import {
   fmtMoney,
   pierCost,
   removePier,
+  requiredShips,
   sellShip,
   setInterval_,
   setNight,
@@ -154,8 +155,9 @@ export class Game {
     if (ids.length >= 2) {
       const line = createLine(state, this.world, ids);
       if (line.ok) {
-        buyShip(state, this.world, line.value.id, { free: true, atTerminal: true });
-        buyShip(state, this.world, line.value.id, { free: true, atTerminal: true });
+        // Başlangıç hattı tarifeyi tutturacak kadar gemiyle gelir.
+        const need = requiredShips(this.world, state, line.value);
+        for (let i = 0; i < need; i++) buyShip(state, this.world, line.value.id, { free: true, atTerminal: true });
       }
     }
     return state;

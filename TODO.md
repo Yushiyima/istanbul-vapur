@@ -36,7 +36,7 @@ Açık işler. Bitince `[x]` yap ya da sil; tasarım kararıysa `DECISIONS.md`'y
 ### Oynanış ve denge
 - [ ] **Reddedilen yolcu çift sayılıyor:** aynı grup her kalkışta yeniden "reddedilen" sayılıyor;
   istatistik şişiyor, memnuniyetteki kalabalık puanı sert. Grup başına bir kez saymak daha doğru.
-- [ ] **Tur süresi akıntısız:** gereken gemi hesabı Boğaz akıntısını ve sisi hesaba katmıyor.
+- [x] **Tur süresi akıntısız:** gereken gemi hesabı Boğaz akıntısını ve sisi hesaba katmıyor.
 - [ ] **Yıl uzunluğu:** 12 oyun günü = 1 yıl (bir gün bir ay). Oynanınca kısa/uzun geliyorsa ayarla.
 - [ ] **Gece:** 23:30–06:00 arası gece hattı yoksa ekran durgun; isteğe bağlı "geceyi hızlı geç".
 

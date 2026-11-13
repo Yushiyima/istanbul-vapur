@@ -9,6 +9,7 @@
 import { DEMAND, ECON, KNOT_M_PER_MIN, LINE, SATISFACTION, SHIP_TYPES, TIME } from '../config/balance.ts';
 import { haversineM, type LngLat } from '../geo/geo.ts';
 import { catchmentOf } from './catchment.ts';
+import { routeTimeFactor } from './events.ts';
 import { onDayEnd, onHourEnd } from './hooks.ts';
 import { emptyDay, emptyHour, minuteOfDay } from './state.ts';
 import type { GameState, Line, Pier, Ship, WaitGroup } from './types.ts';
@@ -117,10 +118,14 @@ function rideMinutes(world: World, state: GameState, line: Line, i: number, j: n
   const speed = SHIP_TYPES[line.shipType].speedKn * KNOT_M_PER_MIN;
   const n = line.pierIds.length;
   let m = 0;
+  const legMin = (leg: number) => {
+    const r = legRoute(world, state, line, leg);
+    return r ? (r.lengthM / speed) * routeTimeFactor(world, r) : Infinity;
+  };
   if (j > i) {
-    for (let leg = i; leg < j; leg++) m += (legRoute(world, state, line, leg)?.lengthM ?? Infinity) / speed;
+    for (let leg = i; leg < j; leg++) m += legMin(leg);
   } else {
-    for (let k = i; k > j; k--) m += (legRoute(world, state, line, 2 * (n - 1) - k)?.lengthM ?? Infinity) / speed;
+    for (let k = i; k > j; k--) m += legMin(2 * (n - 1) - k);
   }
   return m + Math.max(0, Math.abs(j - i) - 1) * LINE.dwellMin;
 }

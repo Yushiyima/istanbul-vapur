@@ -18,8 +18,7 @@ const e = placeHistoric(state, world, 'eminonu');
 const k = placeHistoric(state, world, 'kadikoy');
 const l1 = createLine(state, world, [e.id, k.id]);
 if (!l1.ok) throw new Error(l1.message);
-buyShip(state, world, l1.value.id, { free: true, atTerminal: true });
-buyShip(state, world, l1.value.id, { free: true, atTerminal: true });
+for (let i = 0; i < 3; i++) buyShip(state, world, l1.value.id, { free: true, atTerminal: true });
 if (big) {
   const u = placeHistoric(state, world, 'uskudar');
   const b = placeHistoric(state, world, 'besiktas');

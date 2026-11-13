@@ -4,6 +4,7 @@
 import { ECON, KNOT_M_PER_MIN, LINE, PIER, SHIP_TYPES, TERSANE } from '../config/balance.ts';
 import { haversineM, type LngLat } from '../geo/geo.ts';
 import { landComponentAt } from '../nav/grid.ts';
+import { routeTimeFactor } from './events.ts';
 import { catchmentOf, computeCatchment } from './catchment.ts';
 import { nextId } from './state.ts';
 import type { GameState, Line, Pier, Ship, ShipTypeId } from './types.ts';
@@ -129,17 +130,21 @@ export function setNight(state: GameState, lineId: string, night: boolean): void
   if (l) l.night = night;
 }
 
-/** Bir tam tur (gidiş-dönüş) süresi, dakika. */
+/** Bir tam tur (gidiş-dönüş) süresi, dakika. Boğaz akıntısı dahil; her bacak tam dakikaya yuvarlanır. */
 export function cycleMinutes(world: World, state: GameState, line: Line, shipType: ShipTypeId = line.shipType): number {
   const speed = SHIP_TYPES[shipType].speedKn * KNOT_M_PER_MIN;
   let sail = 0;
-  for (let leg = 0; leg < legCount(line); leg++) sail += (legRoute(world, state, line, leg)?.lengthM ?? 0) / speed;
+  for (let leg = 0; leg < legCount(line); leg++) {
+    const r = legRoute(world, state, line, leg);
+    if (r) sail += Math.ceil((r.lengthM / speed) * routeTimeFactor(world, r));
+  }
   const intermediate = Math.max(0, line.pierIds.length - 2) * 2;
   return sail + intermediate * LINE.dwellMin + 2 * LINE.turnaroundMin;
 }
 
+/** Gereken gemi: tur süresi + tarifeye denk gelme payı. */
 export function requiredShips(world: World, state: GameState, line: Line): number {
-  return Math.max(1, Math.ceil(cycleMinutes(world, state, line) / line.intervalMin));
+  return Math.max(1, Math.ceil((cycleMinutes(world, state, line) + LINE.scheduleSlackMin) / line.intervalMin));
 }
 
 export function shipsOnLine(state: GameState, lineId: string): Ship[] {

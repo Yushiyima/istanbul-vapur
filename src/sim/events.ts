@@ -106,6 +106,30 @@ export function speedFactor(state: GameState, world: World, route: Route, dist: 
   return f;
 }
 
+const timeFactorCache = new WeakMap<Route, number>();
+
+/**
+ * Akıntı yüzünden rotanın süre çarpanı (1 = akıntısız). Hava hariç, sadece Boğaz akıntısı.
+ * Tur süresi ve gereken gemi hesabında kullanılır.
+ */
+export function routeTimeFactor(world: World, route: Route): number {
+  let f = timeFactorCache.get(route);
+  if (f !== undefined) return f;
+  const bogaz = zonePoly(world, 'bogaz');
+  if (!bogaz || route.lengthM <= 0) return 1;
+  const step = 100;
+  let sum = 0, n = 0;
+  for (let d = step / 2; d < route.lengthM; d += step) {
+    const { p, dir } = pointAlong(route, d);
+    const speed = pointInPolygon(p, bogaz) ? 1 - EVENTS.currentStrength * dir[1] : 1;
+    sum += 1 / speed;
+    n++;
+  }
+  f = n ? sum / n : 1;
+  timeFactorCache.set(route, f);
+  return f;
+}
+
 /** Bacak Boğaz'ı enine mi kesiyor (iki ucu farklı yakada ve Boğaz bölgesinde)? */
 export function crossesBosphorus(state: GameState, world: World, line: Line, leg: number): boolean {
   const { from, to } = legEnds(line, leg);
