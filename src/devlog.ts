@@ -3,7 +3,7 @@
  * sunucu bunları logs/dev.log dosyasına yazar. Üretim paketinde hiçbir şey yapmaz.
  */
 
-type Level = 'info' | 'warn' | 'error' | 'game';
+type Level = 'info' | 'warn' | 'error' | 'game' | 'perf' | 'pulse';
 interface Entry {
   t: string;
   level: Level;

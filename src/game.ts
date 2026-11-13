@@ -74,6 +74,7 @@ export class Game {
     this.world.catchments.clear();
     this.world.od = null;
     this.coverageCache.clear();
+    this.coverageQueue = [];
     this.draft = [];
     this.selectedLineId = null;
     this.lastSavedDay = dayIndex(this.state.minute);
@@ -87,15 +88,22 @@ export class Game {
 
   private lastSavedDay = -1;
 
+  private saving = false;
+
   async save(slot: string = AUTO_SLOT): Promise<boolean> {
+    if (this.saving) return false;
+    this.saving = true;
+    const t0 = performance.now();
     try {
       await saveGame(this.state, slot);
       this.lastSavedDay = dayIndex(this.state.minute);
-      devLog('game', `kaydedildi (${slot}) · gün ${dayIndex(this.state.minute)}`);
+      devLog('game', `kaydedildi (${slot}) · gün ${dayIndex(this.state.minute)} · ${Math.round(performance.now() - t0)} ms`);
       return true;
     } catch (err) {
       console.error('Kayıt başarısız:', err);
       return false;
+    } finally {
+      this.saving = false;
     }
   }
 
@@ -114,7 +122,7 @@ export class Game {
 
   /** Gün değiştiyse otomatik kaydet. */
   autosave(): void {
-    if (dayIndex(this.state.minute) !== this.lastSavedDay) void this.save(AUTO_SLOT);
+    if (!this.saving && dayIndex(this.state.minute) !== this.lastSavedDay) void this.save(AUTO_SLOT);
   }
 
   /** Simülasyonun ürettiği bildirimleri alır ve boşaltır. */
@@ -175,8 +183,13 @@ export class Game {
   }
 
   /** Gerçek zamanda `dtMs` ilerlet; son tick ile sonraki arasındaki oranı döner. */
+  /** Son advance() çağrısının tick sayısı ve süresi (ms), performans logu için. */
+  lastAdvance = { ticks: 0, ms: 0 };
+
   advance(dtMs: number): number {
+    this.lastAdvance = { ticks: 0, ms: 0 };
     if (!this.speed) return 0;
+    const t0 = performance.now();
     this.acc += (dtMs * this.speed) / TIME.realMsPerMinute;
     let n = 0;
     while (this.acc >= 1 && n < TIME.maxTicksPerFrame) {
@@ -185,6 +198,7 @@ export class Game {
       n++;
     }
     if (this.acc > 1) this.acc = 1; // yetişemiyorsak birikmesin
+    this.lastAdvance = { ticks: n, ms: performance.now() - t0 };
     return this.acc;
   }
 
@@ -239,7 +253,7 @@ export class Game {
     }
     this.toast(match ? `${name} tarihi iskelesi yeniden açıldı.` : `${name} iskelesi kuruldu.`, 'ok');
     if (match) pushFeed(this.state, this.world, 'historic', { pier: name });
-    devLog('game', `iskele kuruldu "${name}"${match ? ` (tarihi: ${match.id})` : ''} tık=${fmtLL(click)} kıyı=${fmtLL(r.coast)} yapışma=${Math.round(r.snapDistanceM)} m · ${res.value.side} · toplam ${this.state.piers.length}`);
+    devLog('game', `iskele kuruldu "${name}"${match ? ` (tarihi: ${match.id})` : ''} tık=${fmtLL(click)} kıyı=${fmtLL(r.coast)} yapışma=${Math.round(r.snapDistanceM)} m · ${res.value.side} · toplam ${this.state.piers.length} · kasa ${this.money()}`);
     this.changed();
     return res.value;
   }
@@ -257,19 +271,34 @@ export class Game {
 
   upgradeBerths(id: string): void {
     const r = upgradeBerths(this.state, id);
+    devLog('game', `yanaşma yeri ${id}: ${r.ok ? `${r.value} oldu` : r.message} · kasa ${this.money()}`);
     if (r.ok) this.toast(`Yanaşma yeri ${r.value} oldu.`, 'ok');
     else this.toast(r.message, 'error');
     this.changed();
   }
 
-  /** İskelenin karadaki kapsama alanı (önbellekli). */
+  private coverageQueue: Pier[] = [];
+
+  /**
+   * İskelenin karadaki kapsama alanı. Hesap iskele başına ~25 ms sürdüğü için hemen yapılmaz:
+   * sıraya alınır, `pumpCoverage` her karede bir tane hesaplar. Hazır olana kadar boş döner.
+   */
   coverage(pier: Pier): PolygonCoords[] {
-    let c = this.coverageCache.get(pier.id);
-    if (!c) {
-      c = landCoverage(pier.coast, pier.comp, this.waterIndex, this.world.grid);
-      this.coverageCache.set(pier.id, c);
+    const c = this.coverageCache.get(pier.id);
+    if (c) return c;
+    if (!this.coverageQueue.some((p) => p.id === pier.id)) this.coverageQueue.push(pier);
+    return [];
+  }
+
+  /** Sıradaki kapsama alanlarından birini hesaplar; bir şey hesaplandıysa true. */
+  pumpCoverage(): boolean {
+    while (this.coverageQueue.length) {
+      const pier = this.coverageQueue.shift()!;
+      if (this.coverageCache.has(pier.id) || !this.state.piers.some((p) => p.id === pier.id)) continue;
+      this.coverageCache.set(pier.id, landCoverage(pier.coast, pier.comp, this.waterIndex, this.world.grid));
+      return true;
     }
-    return c;
+    return false;
   }
 
   // ---------------------------------------------------------------- hat
@@ -303,6 +332,7 @@ export class Game {
       this.toast('Hat için en az iki iskele seç.', 'error');
       return;
     }
+    const t0 = performance.now();
     const r = createLine(this.state, this.world, this.draft);
     if (!r.ok) {
       this.toast(r.message, 'error');
@@ -311,7 +341,7 @@ export class Game {
     }
     const ship = buyShip(this.state, this.world, r.value.id);
     this.toast(ship.ok ? `${r.value.name} hattı açıldı, ilk vapur tersaneden yola çıktı.` : `${r.value.name} hattı açıldı. ${ship.message}`, ship.ok ? 'ok' : 'error');
-    devLog('game', `hat açıldı "${r.value.name}" (${r.value.pierIds.length} iskele) · gemi: ${ship.ok ? 'var' : ship.message}`);
+    devLog('game', `hat açıldı "${r.value.name}" (${r.value.pierIds.length} iskele) · gemi: ${ship.ok ? 'var' : ship.message} · kasa ${this.money()} · ${Math.round(performance.now() - t0)} ms`);
     pushFeed(this.state, this.world, 'newLine', { line: r.value.name });
     this.draft = [];
     this.selectedLineId = r.value.id;
@@ -345,12 +375,13 @@ export class Game {
   addShip(id: string): void {
     const r = buyShip(this.state, this.world, id);
     if (!r.ok) this.toast(r.message, 'error');
-    else devLog('game', `gemi alındı ${id} (${r.value.type})`);
+    else devLog('game', `gemi alındı ${id} (${r.value.type}) · kasa ${this.money()}`);
     this.changed();
   }
 
   removeShip(id: string): void {
     const r = sellShip(this.state, id);
+    devLog('game', `gemi satıldı ${id}: ${r.ok ? 'tamam' : r.message} · kasa ${this.money()}`);
     if (!r.ok) this.toast(r.message, 'error');
     this.changed();
   }
@@ -364,6 +395,7 @@ export class Game {
 
   upgradeTersane(): void {
     const r = upgradeTersane(this.state);
+    devLog('game', `tersane: ${r.ok ? `kapasite ${r.value}` : r.message} · kasa ${this.money()}`);
     this.toast(r.ok ? `Tersane kapasitesi ${r.value} gemi.` : r.message, r.ok ? 'ok' : 'error');
     this.changed();
   }

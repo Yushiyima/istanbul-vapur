@@ -9,6 +9,8 @@ import type { LngLat } from './geo/geo.ts';
 import { createMap, LAYER, renderDraft, renderGhost, renderNetwork, renderShips, setCoverageVisible, setNoBuildEmphasis, setOverlay } from './map/mapView.ts';
 import { overlayData } from './map/overlay.ts';
 import { horn, setSound } from './ui/sound.ts';
+import { currentWeather } from './sim/events.ts';
+import { waitingCount } from './sim/passengers.ts';
 import { catchmentOf } from './sim/catchment.ts';
 import { fmtMoney } from './sim/network.ts';
 import { berthsInUse, shipPose } from './sim/tick.ts';
@@ -22,6 +24,11 @@ import { createTopbar, formatClock, formatDate } from './ui/topbar.ts';
 import { AUTO_SLOT, MANUAL_SLOT } from './save/save.ts';
 
 installDevLogBridge();
+
+/** Performans logu eşikleri (geliştirme teşhisi; denge sayısı değil). */
+const PERF_SLOW_FRAME_MS = 120;
+const PERF_GAP_MS = 400;
+const PERF_MAX_LOGS = 200;
 
 const SIDE_LABEL: Record<string, string> = { avrupa: 'Avrupa yakası', anadolu: 'Anadolu yakası', ada: 'Ada' };
 const STATUS_LABEL: Record<string, string> = {
@@ -245,10 +252,14 @@ async function main(): Promise<void> {
   let lastUi = 0;
   let lastNet = 0;
   let lastShips = 0;
+  let lastHourLogged = -1;
+  let slowFrames = 0;
   const frame = (now: number) => {
-    const dt = Math.min(250, now - last);
+    const gap = now - last;
+    const dt = Math.min(250, gap);
     last = now;
     const frac = game.advance(dt);
+    const tAdv = game.lastAdvance;
     if (now - lastShips > 33) {
       renderShips(map, game, frac);
       hornOnDepartures();
@@ -263,9 +274,23 @@ async function main(): Promise<void> {
       game.autosave();
       lastUi = now;
     }
-    if (now - lastNet > 2000) {
+    // Kapsama alanları kareler arasına yayılarak hesaplanır; biri bitince ağ yeniden çizilir.
+    if (game.pumpCoverage() || now - lastNet > 2000) {
       renderNetwork(map, game, view);
       lastNet = now;
+    }
+    // Performans: kare uzun sürdüyse ya da kareler arası boşluk büyükse logla.
+    const work = performance.now() - now;
+    if ((work > PERF_SLOW_FRAME_MS || (gap > PERF_GAP_MS && document.visibilityState === 'visible')) && slowFrames < PERF_MAX_LOGS) {
+      slowFrames++;
+      devLog('perf', `yavaş kare: iş ${Math.round(work)} ms (tick ${tAdv.ticks} = ${Math.round(tAdv.ms)} ms) · kareler arası ${Math.round(gap)} ms · hız ${game.speed}× · gemi ${game.state.ships.length} · iskele ${game.state.piers.length} · bekleyen grup ${Object.values(game.state.waiting).reduce((s, l) => s + l.length, 0)}`);
+    }
+    // Saatlik nabız: kasa ve durum (loglardan oyunun gidişatı okunabilsin).
+    const hour = Math.floor(game.state.minute / 60);
+    if (hour !== lastHourLogged && game.state.minute % 60 < 5) {
+      lastHourLogged = hour;
+      const s = game.state;
+      devLog('pulse', `${formatDate(s.minute)} ${formatClock(s.minute)} · kasa ${fmtMoney(s.money)} · memnuniyet %${Math.round(s.satisfaction)} · bugün ${s.today.boardings} yolcu · bekleyen ${waitingCount(s)} · kaçan ${s.today.tripsMissed} · hava ${currentWeather(s)}${s.tanker ? ' +tanker' : ''}`);
     }
     requestAnimationFrame(frame);
   };
