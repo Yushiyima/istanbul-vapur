@@ -56,11 +56,11 @@ const TEMPLATES: Record<FeedTopic, readonly string[]> = {
   ],
   crowded: [
     '{pier} iskelesinde vapura sığamadık. Bir sonrakini balkondan izleyeceğiz.',
-    '{pier}’da vapur o kadar dolu ki martılar bile ayakta.',
+    '{pierLoc} vapur o kadar dolu ki martılar bile ayakta.',
     '{pier}: kapı kapandı, ben dışarıda kaldım. Simitçiyle dertleştik.',
   ],
   longWait: [
-    '{pier}’da {wait} dakikadır bekliyorum. Simitçiyle akraba olduk.',
+    '{pierLoc} {wait} dakikadır bekliyorum. Simitçiyle akraba olduk.',
     '{pier} iskelesinde bekleme rekoru: {wait} dakika. Ödül yok mu?',
   ],
   missed: [
@@ -87,7 +87,29 @@ const TEMPLATES: Record<FeedTopic, readonly string[]> = {
   historic: ['{pier} iskelesi yıllar sonra yeniden açıldı. Dedemin anlattığı iskele bu!', 'Tarihi {pier} iskelesi yine vapur görüyor. Gözlerim doldu.'],
 };
 
+const BACK_VOWELS = 'aıou';
+const FRONT_VOWELS = 'eiöü';
+const HARD = 'fstkçşhp';
+
+/** Türkçe bulunma eki: "Kadıköy’de", "Bebek’te", "Balat’ta", "Eminönü’de". Ünlü uyumu + sert ünsüz. */
+export function locative(name: string): string {
+  const lower = name.toLocaleLowerCase('tr');
+  let vowel = 'a';
+  for (let i = lower.length - 1; i >= 0; i--) {
+    const ch = lower[i]!;
+    if (BACK_VOWELS.includes(ch) || FRONT_VOWELS.includes(ch)) {
+      vowel = ch;
+      break;
+    }
+  }
+  const front = FRONT_VOWELS.includes(vowel);
+  const last = lower[lower.length - 1] ?? '';
+  const d = HARD.includes(last) ? 't' : 'd';
+  return `${name}’${d}${front ? 'e' : 'a'}`;
+}
+
 export function pushFeed(state: GameState, _world: World, topic: FeedTopic, vars: Record<string, string | number> = {}): void {
+  if (typeof vars.pier === 'string' && vars.pierLoc === undefined) vars = { ...vars, pierLoc: locative(vars.pier) };
   const list = TEMPLATES[topic];
   const tpl = list[Math.floor(random(state) * list.length)]!;
   const author = topic === 'gull' ? AUTHORS[2] : AUTHORS[Math.floor(random(state) * AUTHORS.length)]!;

@@ -61,7 +61,7 @@ export function updateEvents(state: GameState, world: World): void {
     const len = EVENTS.tankerMinutes[0] + Math.round(random(state) * (EVENTS.tankerMinutes[1] - EVENTS.tankerMinutes[0]));
     state.tanker = { until: state.minute + len };
     state.notices.push({ at: state.minute, kind: 'info', text: `🚢 Tanker geçiyor: Boğaz'ı enine kesen seferler ${len} dk bekleyecek.` });
-    pushFeed(state, world, 'tanker');
+    if (random(state) < EVENTS.tankerFeedChance) pushFeed(state, world, 'tanker');
   }
 }
 

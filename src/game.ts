@@ -23,6 +23,7 @@ import {
 } from './sim/network.ts';
 import { evaluatePlacement, findHistoricMatch, normalizeName, pickPierName, uniqueName, type PlacementResult } from './sim/piers.ts';
 import { createGame, dayIndex } from './sim/state.ts';
+import { pushFeed } from './sim/feed.ts';
 import { RouteCache } from './nav/route.ts';
 import { AUTO_SLOT, loadGame, saveGame } from './save/save.ts';
 import { tick } from './sim/tick.ts';
@@ -237,6 +238,7 @@ export class Game {
       return null;
     }
     this.toast(match ? `${name} tarihi iskelesi yeniden açıldı.` : `${name} iskelesi kuruldu.`, 'ok');
+    if (match) pushFeed(this.state, this.world, 'historic', { pier: name });
     devLog('game', `iskele kuruldu "${name}"${match ? ` (tarihi: ${match.id})` : ''} tık=${fmtLL(click)} kıyı=${fmtLL(r.coast)} yapışma=${Math.round(r.snapDistanceM)} m · ${res.value.side} · toplam ${this.state.piers.length}`);
     this.changed();
     return res.value;
@@ -310,6 +312,7 @@ export class Game {
     const ship = buyShip(this.state, this.world, r.value.id);
     this.toast(ship.ok ? `${r.value.name} hattı açıldı, ilk vapur tersaneden yola çıktı.` : `${r.value.name} hattı açıldı. ${ship.message}`, ship.ok ? 'ok' : 'error');
     devLog('game', `hat açıldı "${r.value.name}" (${r.value.pierIds.length} iskele) · gemi: ${ship.ok ? 'var' : ship.message}`);
+    pushFeed(this.state, this.world, 'newLine', { line: r.value.name });
     this.draft = [];
     this.selectedLineId = r.value.id;
     this.changed();
@@ -334,6 +337,7 @@ export class Game {
 
   setNight(id: string, night: boolean): void {
     setNight(this.state, id, night);
+    if (night) pushFeed(this.state, this.world, 'night');
     devLog('game', `gece seferi ${id} = ${night}`);
     this.changed();
   }

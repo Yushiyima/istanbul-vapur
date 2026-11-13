@@ -40,7 +40,12 @@ for (let d = 0; d < days; d++) {
     if (state.minute % 60 === 0) { const b = state.today.boardings; hourly.push(b - lastB); lastB = b; if (state.today.boardings === 0 && hourly.length > 1) lastB = 0; }
   }
   const y = state.yesterday!;
-  console.log(`\nGün ${d + 1}: biniş ${y.boardings.toLocaleString('tr-TR')} · gelir ${Math.round(y.revenue).toLocaleString('tr-TR')} · gider ${Math.round(y.costs).toLocaleString('tr-TR')} · reddedilen ${y.denied} · vazgeçen ${y.gaveUp} · ort. bekleme ${(y.waitSum / Math.max(1, y.waitCount)).toFixed(1)} dk · kaçan ${y.tripsMissed} · memnuniyet ${state.satisfaction.toFixed(1)}`);
-  console.log('saatlik biniş:', hourly.join(' '));
+  const wx = state.notices.filter((n) => /başladı|bastı|Tanker|Hedef/.test(n.text)).map((n) => n.text.split(':')[0]).join(', ');
+  state.notices = [];
+  console.log(`\nGün ${d + 1}${wx ? ` [${wx}]` : ''}: biniş ${y.boardings.toLocaleString('tr-TR')} · gelir ${Math.round(y.revenue).toLocaleString('tr-TR')} · gider ${Math.round(y.costs).toLocaleString('tr-TR')} · reddedilen ${y.denied} · vazgeçen ${y.gaveUp} · ort. bekleme ${(y.waitSum / Math.max(1, y.waitCount)).toFixed(1)} dk · kaçan ${y.tripsMissed} · memnuniyet ${state.satisfaction.toFixed(1)}`);
+  if (days <= 3) console.log('saatlik biniş:', hourly.slice(0, 18).join(' '));
 }
+console.log(`\nPeron: ${state.feed.length} paylaşım (en fazla 40) · hedefler: ${Object.keys(state.goals).join(', ') || '-'}`);
+console.log('Son paylaşımlar:\n  ' + state.feed.slice(0, 6).map((p) => `${p.avatar} ${p.text}`).join('\n  '));
+if (state.pendingYearSummary) console.log('Yıl özeti:', JSON.stringify(state.pendingYearSummary));
 console.log(`\nKasa değişimi: ${Math.round(state.money - startMoney).toLocaleString('tr-TR')} · günlük sabit gider ${dailyRunningCostSafe(state).toLocaleString('tr-TR')}`);

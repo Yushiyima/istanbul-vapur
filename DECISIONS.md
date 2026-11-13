@@ -67,3 +67,12 @@ Belirsiz tasarım kararları ve gerekçeleri, her biri bir satır.
 - **Yıl sonu** (12. gün sonu): özet penceresi açılıyor, oyun duruyor, kapanınca devam ediyor.
 - **Kayıt:** IndexedDB (`idb`), `auto` ve `manual` iki yuva. Her oyun günü sonunda ve sekme gizlenince otomatik kaydediliyor. Açılışta otomatik kayıt varsa yükleniyor. Rastgelelik GameState içindeki mulberry32 durumundan geldiği için yüklenen oyun aynı şekilde devam ediyor (testli).
 - **Peron'un temeli** (paylaşım şablonları) bu aşamada geldi, çünkü olaylar ve hedefler paylaşım üretiyor. Saatlik durum paylaşımları Aşama 5'te.
+
+## Aşama 5
+
+- **Peron:** saat sonu durumuna göre olasılıklı paylaşım (kalabalık > biniş %10'u ve 150 kişi, 22 dk'yı aşan bekleme, kaçan sefer, martı, mutlu yolcu). Eylemler de paylaşım üretiyor: tarihi iskele açılışı, yeni hat, gece seferi, hedef. Son 40 paylaşım tutuluyor. Seçim tohumlu üreteçle yapıldığı için kayıttan sonra aynı akıyor.
+- **Türkçe ek:** "{pierLoc}" şablonu ünlü uyumu ve sert ünsüzle bulunma eki üretiyor (Kadıköy’de, Bebek’te, Balat’ta).
+- **Ses:** dosyasız, WebAudio ile sentezlenmiş iki tonlu düdük. Ekrandaki bir gemi kalktığında çalıyor, en fazla 2,5 sn'de bir. Varsayılan kapalı (tarayıcılar kullanıcı etkileşimi olmadan ses açtırmıyor).
+- **Katmanlar:** nüfus ve çekim H3 altıgenleri, 7 sınıflı dilim ölçeği (nüfus mavi-mor, çekim turuncu); hat doluluğu (son kalkışların doluluk ortalaması hat kalınlığına); kapsama alanlarını gizle/göster.
+- **Denge** (`node scripts/simulate.ts 12`): başlangıç ağıyla 1 yıl: ~470 bin yolcu, ~10,4 M ₺ gelir, ~2,6 M ₺ gider, ortalama memnuniyet ~%88. %95 hedefi için gemi eklemek gerekiyor. Tanker olasılığı %22'den %12'ye indirildi (günde 3–5 geçiş fazla bildirim üretiyordu).
+- **Yapılmayanlar:** arabalı vapurun iskele kısıtı ve araç geliri, hat düzenleme (iskele ekle/çıkar), mobil dokunmatik için ayrı arayüz.

@@ -221,7 +221,9 @@ export const EVENTS = {
   fogSpeedFactor: 0.6,
   /** Boğaz akıntısı: kuzeye giden gemi bu oranda yavaş, güneye giden hızlı. */
   currentStrength: 0.15,
-  tankerChancePerHour: 0.22,
+  tankerChancePerHour: 0.12,
+  /** Tanker geçişinin Peron'da paylaşılma olasılığı. */
+  tankerFeedChance: 0.4,
   tankerMinutes: [12, 28],
   tankerHours: [6, 22],
 } as const;

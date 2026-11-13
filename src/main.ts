@@ -6,7 +6,9 @@ import { loadCityPack } from './cityPack.ts';
 import { devLog, installDevLogBridge } from './devlog.ts';
 import { Game } from './game.ts';
 import type { LngLat } from './geo/geo.ts';
-import { createMap, LAYER, renderDraft, renderGhost, renderNetwork, renderShips, setNoBuildEmphasis } from './map/mapView.ts';
+import { createMap, LAYER, renderDraft, renderGhost, renderNetwork, renderShips, setCoverageVisible, setNoBuildEmphasis, setOverlay } from './map/mapView.ts';
+import { overlayData } from './map/overlay.ts';
+import { horn, setSound } from './ui/sound.ts';
 import { catchmentOf } from './sim/catchment.ts';
 import { fmtMoney } from './sim/network.ts';
 import { berthsInUse, shipPose } from './sim/tick.ts';
@@ -51,8 +53,33 @@ async function main(): Promise<void> {
       void game.save(AUTO_SLOT);
       toast('Yeni oyun başladı.', 'ok');
     },
+    onLayer: (id) => {
+      const cells = pack.data.cells;
+      view.showLoad = id === 'load';
+      setOverlay(map, (id === 'pop' || id === 'att') && cells ? overlayData(cells, id) : null);
+      if ((id === 'pop' || id === 'att') && !cells) toast('Nüfus verisi yok: scripts/build-cells.mjs çalıştır.', 'error');
+      renderNetwork(map, game, view);
+      devLog('game', `katman: ${id}`);
+    },
+    onCoverage: (visible) => setCoverageVisible(map, visible),
+    onSound: (on) => setSound(on),
   });
   const view = { showLoad: false };
+  // Kalkışta düdük: gemi durumu yanaşmışken seyre geçtiyse ve ekrandaysa.
+  const lastStatus = new Map<string, string>();
+  function hornOnDepartures(): void {
+    const bounds = map.getBounds();
+    for (const ship of game.state.ships) {
+      const prev = lastStatus.get(ship.id);
+      lastStatus.set(ship.id, ship.status);
+      if (ship.status !== 'sailing' || (prev !== 'layover' && prev !== 'dwell')) continue;
+      const pose = shipPose(game.state, game.world, ship, 0);
+      if (pose && bounds.contains(pose.p)) {
+        horn();
+        break;
+      }
+    }
+  }
 
   let cursor: LngLat | null = null;
   let lastSpeed = 1;
@@ -224,6 +251,7 @@ async function main(): Promise<void> {
     const frac = game.advance(dt);
     if (now - lastShips > 33) {
       renderShips(map, game, frac);
+      hornOnDepartures();
       lastShips = now;
     }
     if (now - lastUi > 250) {

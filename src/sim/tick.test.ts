@@ -6,6 +6,12 @@ import { createGame } from './state.ts';
 import { berthsInUse, shipPose, tick } from './tick.ts';
 import { placeHistoric, testWorld } from './testWorld.ts';
 
+/** Olaysız gün: hava açık, tanker yok (tarife testleri olaylardan bağımsız olsun). */
+function calm(state: ReturnType<typeof createGame>): void {
+  state.weather = { kind: 'acik', from: 0, until: 1e9 };
+  state.tanker = null;
+}
+
 function setup() {
   const world = testWorld();
   const state = createGame(42);
@@ -46,10 +52,14 @@ describe('hat ve sefer', () => {
     const need = requiredShips(world, state, line.value);
     for (let i = 0; i < need; i++) expect(buyShip(state, world, line.value.id, { free: true, atTerminal: true }).ok).toBe(true);
     // İlk turun ısınması: 1 saat sonra saymaya başla.
-    for (let i = 0; i < 60; i++) tick(state, world);
+    for (let i = 0; i < 60; i++) {
+      calm(state);
+      tick(state, world);
+    }
     const missedBefore = state.today.tripsMissed;
     const doneBefore = state.today.tripsDone;
     for (let i = 0; i < 180; i++) {
+      calm(state);
       tick(state, world);
       for (const s of state.ships) {
         if (s.status !== 'sailing' || s.dist < 150) continue;

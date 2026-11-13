@@ -3,7 +3,7 @@
 Gerçek İstanbul haritası üstünde iskele kurup vapur hattı işlettiğin bir tarayıcı oyunu.
 Tasarım ve yol haritası: [`CLAUDE.md`](CLAUDE.md). Tasarım kararları: [`DECISIONS.md`](DECISIONS.md).
 
-**Durum:** Aşama 4. Hedefler, olaylar, kayıt.
+**Durum:** 5 aşamanın hepsi tamam: harita ve iskele, su ağı ve hatlar, talep ve ekonomi, hedefler/olaylar/kayıt, Peron/ses/katmanlar.
 
 ## Çalıştırma
 
@@ -55,6 +55,22 @@ veri scriptini çalıştırman gerekmez.
 - **Yıl sonu** (12 oyun günü): özet penceresi.
 - **Kayıt:** sağ kolon → ☰ → Kaydet / Kayıttan yükle / Yeni oyun. Her gün sonu ve sekme kapanırken otomatik kaydedilir.
 
+## Oynanış (Aşama 5)
+
+- **Peron** (sağ kolon → 💬): yolcuların olaylara ve hat durumuna göre paylaşımları ("Vapur kaçtı, simit kaldı", martı şikâyetleri, lodos iptali …).
+- **☰ menüsü → Katmanlar:** nüfus, çekim (H3 altıgenleri), hat doluluğu; kapsama alanlarını aç/kapa.
+- **Ses:** ☰ → Vapur düdüğü. Ekrandaki bir gemi kalkınca düdük çalar.
+
+## Kısayollar
+
+| Tuş | İş |
+|---|---|
+| G / Esc | Gez aracı (hat taslağında Esc iptal) |
+| İ | İskele aracı |
+| H | Hat aracı · Enter: bitir · Backspace: geri al |
+| Boşluk | Duraklat / devam |
+| 1–4 | 1× 2× 4× 8× hız |
+
 ## Veri scripti
 
 ```bash
@@ -97,9 +113,12 @@ data/          şehir paketi (region, kıyı, su, yer adları, tarihi iskeleler,
 scripts/       veri hazırlama
 src/config/    balance.ts: tüm denge sayıları
 src/geo/       saf geometri: mesafe, kıyıya yapışma, poligon içi testi
-src/sim/       saf oyun mantığı: iskele kuralları, adlandırma
-src/map/       MapLibre kurulumu ve katmanlar
-src/ui/        araç çubuğu, toast
+src/nav/       su ızgarası, kara bileşenleri, A*, rota sadeleştirme ve önbellek
+src/sim/       saf simülasyon (DOM yok): durum, tick, sefer, talep, ekonomi, olaylar, hedefler, Peron
+src/save/      IndexedDB kayıt/yükleme
+src/map/       MapLibre kurulumu, katmanlar, kara kapsama, veri katmanları
+src/ui/        panel, üst bar, sağ kolon, toast, modal, ses
+src/game.ts    oyun denetleyicisi (eylemler, zaman döngüsü)
 ```
 
 ## Atıf

@@ -369,8 +369,9 @@ export function updateEconomyAndSatisfaction(state: GameState, world: World): vo
   if (state.minute % 60 === 0) {
     const score = hourScore(state);
     if (score !== null) state.satisfaction = SATISFACTION.smoothing * state.satisfaction + (1 - SATISFACTION.smoothing) * score;
+    const acc = state.hourAcc;
     state.hourAcc = emptyHour();
-    onHourEnd(state, world);
+    onHourEnd(state, world, acc);
   }
   if (state.minute % TIME.minutesPerDay === 0) {
     const cost = dailyRunningCost(state);
