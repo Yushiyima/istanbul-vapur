@@ -638,3 +638,100 @@ kbd {
     max-height: 35vh;
   }
 }
+
+/* gemi popup'ı */
+.ship-popup .cond {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 6px 0;
+  font-size: 12px;
+}
+.ship-popup .bar {
+  flex: 1;
+  height: 8px;
+  overflow: hidden;
+  background: #e9eef3;
+  border-radius: 4px;
+}
+.ship-popup .bar i {
+  display: block;
+  height: 100%;
+  background: var(--ok);
+}
+.ship-popup .bar.mid i {
+  background: #f59f00;
+}
+.ship-popup .bar.bad i {
+  background: var(--bad);
+}
+.ship-popup table.stats {
+  width: 100%;
+  font-size: 12px;
+  border-collapse: collapse;
+}
+.ship-popup table.stats th {
+  font-weight: 600;
+  color: var(--muted);
+  text-align: right;
+}
+.ship-popup table.stats td {
+  padding: 2px 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  border-bottom: 1px solid #f0f3f6;
+}
+.ship-popup table.stats td:first-child {
+  text-align: left;
+  color: var(--muted);
+}
+.ship-popup .small,
+.pier-popup .small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.pier-popup .row button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* tersane listesi */
+.yards {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.yard-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-left: 4px solid #495057;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.yard-row .small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.tools {
+  flex-wrap: wrap;
+}
+.tools button {
+  min-width: 60px;
+}
+#sidebar label {
+  display: block;
+  margin: 4px 0;
+  font-size: 12px;
+}
+#sidebar select {
+  font: inherit;
+  font-size: 12px;
+}

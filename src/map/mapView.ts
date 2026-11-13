@@ -45,6 +45,7 @@ export const LAYER = {
   noBuildFill: 'vapur-nobuild-fill',
   line: 'vapur-line',
   ship: 'vapur-ship',
+  yard: 'vapur-yard',
 } as const;
 
 export interface GhostState {
@@ -125,6 +126,28 @@ function shipArrowImage(): ImageData {
   return g.getImageData(0, 0, size, size);
 }
 
+/** Tersane işareti: beyaz çapa. */
+function anchorImage(): ImageData {
+  const size = 32;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const g = c.getContext('2d')!;
+  g.strokeStyle = '#ffffff';
+  g.lineWidth = 2.6;
+  g.lineCap = 'round';
+  g.beginPath();
+  g.arc(16, 8, 3, 0, Math.PI * 2);
+  g.moveTo(16, 11);
+  g.lineTo(16, 26);
+  g.moveTo(10, 15);
+  g.lineTo(22, 15);
+  g.moveTo(7, 20);
+  g.quadraticCurveTo(9, 27, 16, 26);
+  g.quadraticCurveTo(23, 27, 25, 20);
+  g.stroke();
+  return g.getImageData(0, 0, size, size);
+}
+
 function addGameLayers(map: MapLibreMap, pack: CityPack): void {
   const style = map.getStyle();
   const layers = style.layers ?? [];
@@ -134,6 +157,7 @@ function addGameLayers(map: MapLibreMap, pack: CityPack): void {
 
   if (waterIdx >= 0) map.setPaintProperty('water', 'fill-color', COLORS.waterOutside);
   map.addImage('ship-arrow', shipArrowImage(), { pixelRatio: 2 });
+  map.addImage('yard-anchor', anchorImage(), { pixelRatio: 2 });
 
   for (const id of ['vapur-coverage', 'vapur-historic', 'vapur-piers', 'vapur-ghost', 'vapur-lines', 'vapur-ships', 'vapur-draft', 'vapur-tersane', 'vapur-overlay']) {
     map.addSource(id, { type: 'geojson', data: fc([]) });
@@ -226,11 +250,28 @@ function addGameLayers(map: MapLibreMap, pack: CityPack): void {
     },
   });
   map.addLayer({
-    id: 'vapur-tersane',
+    id: LAYER.yard,
+    type: 'circle',
+    source: 'vapur-tersane',
+    paint: {
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 6, 15, 12],
+      'circle-color': COLORS.tersane,
+      'circle-stroke-color': '#ffd43b',
+      'circle-stroke-width': 2.5,
+    },
+  });
+  map.addLayer({
+    id: 'vapur-tersane-icon',
     type: 'symbol',
     source: 'vapur-tersane',
-    layout: { 'text-field': '⚓ Tersane', 'text-font': ['Noto Sans Bold'], 'text-size': 12, 'text-anchor': 'left', 'text-offset': [0.6, 0], 'text-allow-overlap': true },
-    paint: { 'text-color': COLORS.tersane, 'text-halo-color': '#fff', 'text-halo-width': 1.5 },
+    layout: { 'icon-image': 'yard-anchor', 'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.5, 15, 0.9], 'icon-allow-overlap': true, 'icon-ignore-placement': true },
+  });
+  map.addLayer({
+    id: 'vapur-tersane-label',
+    type: 'symbol',
+    source: 'vapur-tersane',
+    layout: { 'text-field': ['get', 'label'], 'text-font': ['Noto Sans Bold'], 'text-size': 12, 'text-anchor': 'left', 'text-offset': [1.1, 0], 'text-allow-overlap': true },
+    paint: { 'text-color': COLORS.tersane, 'text-halo-color': '#fff', 'text-halo-width': 1.6 },
   });
   map.addLayer({
     id: 'vapur-ghost-line',
@@ -348,7 +389,7 @@ export function renderNetwork(map: MapLibreMap, game: Game, opts: { showLoad: bo
     });
   }
   source(map, 'vapur-lines').setData(fc(lineFeatures));
-  source(map, 'vapur-tersane').setData(fc([point(world.tersane.coast)]));
+  source(map, 'vapur-tersane').setData(fc(state.yards.map((y) => point(y.coast, { id: y.id, label: y.name }))));
 }
 
 export function renderShips(map: MapLibreMap, game: Game, frac: number): void {

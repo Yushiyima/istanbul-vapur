@@ -11,6 +11,7 @@ import { haversineM, type LngLat } from '../geo/geo.ts';
 import { catchmentOf } from './catchment.ts';
 import { routeTimeFactor } from './events.ts';
 import { onDayEnd, onHourEnd } from './hooks.ts';
+import { emptyCounters } from './yards.ts';
 import { emptyDay, emptyHour, minuteOfDay } from './state.ts';
 import type { GameState, Line, Pier, Ship, WaitGroup } from './types.ts';
 import { legEnds, legRoute, type World } from './world.ts';
@@ -278,6 +279,8 @@ export function boardAt(state: GameState, _world: World, ship: Ship, line: Line,
   state.hourAcc.departures += 1;
   const cap = SHIP_TYPES[ship.type].capacity;
   let onboard = ship.onboard.reduce((s, g) => s + g.count, 0);
+  const before = onboard;
+  const revBefore = state.today.revenue;
   const ahead = aheadOf(line, ship.leg);
   const list = state.waiting[pier.id] ?? [];
   const eligible = list.filter((g) => g.lineId === line.id && ahead.has(g.alight)).sort((a, b) => a.since - b.since);
@@ -312,6 +315,15 @@ export function boardAt(state: GameState, _world: World, ship: Ship, line: Line,
     if (g.count > 0) denied += g.count;
   }
   state.waiting[pier.id] = list.filter((g) => g.count > 0);
+  const boardedNow = onboard - before;
+  const fareNow = state.today.revenue - revBefore;
+  for (const c of [ship.today, ship.total]) {
+    c.trips += 1;
+    c.boardings += boardedNow;
+    c.revenue += fareNow;
+    c.loadSum += onboard / cap;
+    c.loadN += 1;
+  }
   state.today.denied += denied;
   state.hourAcc.denied += denied;
   if (ls) ls.load = ls.load * 0.8 + (onboard / cap) * 0.2;
@@ -338,6 +350,15 @@ export function alightAt(state: GameState, world: World, ship: Ship, pier: Pier)
     addWaiting(state, pier.id, { lineId: leg.lineId, alight: leg.to, dest: g.dest, count: g.count, since: state.minute, startedAt: g.startedAt, xfer: true });
   }
   ship.onboard = stay;
+}
+
+/** Gemide kalan yolcuları (bakım/arıza) iskelede aynı hat için yeniden bekletir. */
+export function requeueOnboard(state: GameState, ship: Ship, line: Line, pier: Pier): void {
+  for (const g of ship.onboard) {
+    if (g.alight === pier.id) continue;
+    addWaiting(state, pier.id, { lineId: line.id, alight: g.alight, dest: g.dest, count: g.count, since: state.minute, startedAt: g.startedAt });
+  }
+  ship.onboard = [];
 }
 
 export function noteMissed(state: GameState): void {
@@ -389,6 +410,7 @@ export function updateEconomyAndSatisfaction(state: GameState, world: World): vo
     state.year.satisfactionDays += 1;
     state.yesterday = state.today;
     state.today = emptyDay();
+    for (const sh of state.ships) sh.today = emptyCounters();
     for (const ls of Object.values(state.lineStats)) {
       ls.boardings = 0;
       ls.revenue = 0;

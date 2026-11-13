@@ -6,7 +6,7 @@
  * Terminalde (layover) gemi tarifeli kalkış anını bekler: hat oluşturulduğundan beri her
  * `intervalMin` dakikada bir. O anda hazır gemi yoksa sefer kaçar (iptal sayılır).
  */
-import { KNOT_M_PER_MIN, LINE, SHIP_TYPES } from '../config/balance.ts';
+import { KNOT_M_PER_MIN, LINE, MAINT, SHIP_TYPES } from '../config/balance.ts';
 
 /** Yanaşmış gemi iskele işaretinin altında kalmasın diye rotada bu kadar ileride çizilir. */
 const DOCK_VIEW_OFFSET_M = 70;
@@ -15,7 +15,8 @@ const PASSING_OFFSET_M = 35;
 import { makeRoute, pointAlong } from '../nav/route.ts';
 import { offsetM, type LngLat } from '../geo/geo.ts';
 import { canDepart, speedFactor, updateEvents } from './events.ts';
-import { alightAt, boardAt, generateDemand, noteMissed, updateEconomyAndSatisfaction } from './passengers.ts';
+import { alightAt, boardAt, generateDemand, noteMissed, requeueOnboard, updateEconomyAndSatisfaction } from './passengers.ts';
+import { breakDown, conditionSpeedFactor, needsMaintenance, rollBreakdown, sendToYard, tickYards, wear } from './yards.ts';
 import { inService } from './state.ts';
 import type { GameState, Line, Ship } from './types.ts';
 import { legCount, legEnds, legRoute, pierById, type World } from './world.ts';
@@ -39,29 +40,38 @@ export function tick(state: GameState, world: World): void {
     }
   }
   for (const line of state.lines) runTimetable(state, world, line);
+  tickYards(state, world);
 
   updateEconomyAndSatisfaction(state, world);
 }
 
 function shipSpeed(ship: Ship): number {
-  return SHIP_TYPES[ship.type].speedKn * KNOT_M_PER_MIN;
+  const tow = ship.broken ? MAINT.towSpeedFactor : 1;
+  return SHIP_TYPES[ship.type].speedKn * KNOT_M_PER_MIN * conditionSpeedFactor(ship) * tow;
 }
 
 function moveShip(state: GameState, world: World, line: Line, ship: Ship): void {
-  if (ship.status === 'transit' && ship.transit) {
+  if ((ship.status === 'transit' || ship.status === 'toYard') && ship.transit) {
     const route = makeRoute(ship.transit);
     ship.dist += shipSpeed(ship) * speedFactor(state, world, route, ship.dist);
     if (ship.dist >= route.lengthM) {
+      wear(ship, route.lengthM - ship.prevDist);
+      delete ship.transit;
+      ship.dist = ship.prevDist = 0;
+      ship.arrivedAt = state.minute;
+      if (ship.status === 'toYard') {
+        // Tersaneye vardı: bakım kuyruğu (tickYards yuvaya alır).
+        ship.status = 'maintenance';
+        ship.readyAt = 0;
+        return;
+      }
       const n = line.pierIds.length;
       const leg = ship.transitLeg ?? 0;
       ship.leg = leg;
       ship.pierId = line.pierIds[leg === 0 ? 0 : n - 1]!;
       ship.status = 'queue';
-      ship.arrivedAt = state.minute;
-      ship.dist = ship.prevDist = 0;
-      delete ship.transit;
       delete ship.transitLeg;
-    }
+    } else wear(ship, ship.dist - ship.prevDist);
     return;
   }
   if (ship.status !== 'sailing') return;
@@ -70,6 +80,7 @@ function moveShip(state: GameState, world: World, line: Line, ship: Ship): void 
   ship.dist += shipSpeed(ship) * speedFactor(state, world, route, ship.dist);
   if (ship.dist >= route.lengthM) {
     ship.dist = route.lengthM;
+    wear(ship, ship.dist - ship.prevDist);
     const { to } = legEnds(line, ship.leg);
     ship.pierId = line.pierIds[to]!;
     ship.leg = (ship.leg + 1) % legCount(line);
@@ -78,7 +89,7 @@ function moveShip(state: GameState, world: World, line: Line, ship: Ship): void 
     const ls = state.lineStats[line.id];
     if (ls) ls.trips += 1;
     state.today.tripsDone += 1;
-  }
+  } else wear(ship, ship.dist - ship.prevDist);
 }
 
 export function berthsInUse(state: GameState, pierId: string): number {
@@ -100,11 +111,22 @@ function dockQueuedShips(state: GameState, world: World, lines: Map<string, Line
     ship.readyAt = state.minute + (terminal ? LINE.turnaroundMin : LINE.dwellMin);
     ship.dist = ship.prevDist = 0;
     alightAt(state, world, ship, pier);
+    // Bakım zamanı (eşik altı ya da oyuncu istedi): kalan yolcular iskelede bırakılır.
+    if (needsMaintenance(state, ship)) {
+      requeueOnboard(state, ship, line, pier);
+      sendToYard(state, world, ship, pier.dock);
+    }
   }
 }
 
-function depart(state: GameState, world: World, line: Line, ship: Ship): void {
+/** Kalkış; arıza olursa gemi kalkmaz ve false döner. */
+function depart(state: GameState, world: World, line: Line, ship: Ship): boolean {
   const pier = ship.pierId ? pierById(state, ship.pierId) : undefined;
+  if (pier && rollBreakdown(state, ship)) {
+    requeueOnboard(state, ship, line, pier);
+    breakDown(state, world, ship, line, pier.dock, pier.name);
+    return false;
+  }
   if (pier) boardAt(state, world, ship, line, pier);
   const route = legRoute(world, state, line, ship.leg);
   const t = SHIP_TYPES[ship.type];
@@ -116,6 +138,7 @@ function depart(state: GameState, world: World, line: Line, ship: Ship): void {
   ship.status = 'sailing';
   ship.pierId = null;
   ship.dist = ship.prevDist = 0;
+  return true;
 }
 
 function runTimetable(state: GameState, world: World, line: Line): void {
@@ -129,8 +152,8 @@ function runTimetable(state: GameState, world: World, line: Line): void {
     const ready = ships
       .filter((s) => s.status === 'layover' && s.pierId === pierId && s.leg === leg && s.readyAt <= state.minute)
       .sort((a, b) => a.arrivedAt - b.arrivedAt)[0];
-    if (ready && canDepart(state, world, line, leg)) {
-      depart(state, world, line, ready);
+    if (ready && canDepart(state, world, line, leg) && depart(state, world, line, ready)) {
+      // kalktı
     } else {
       state.today.tripsMissed += 1;
       noteMissed(state);
@@ -154,7 +177,7 @@ export function shipPose(state: GameState, world: World, ship: Ship, frac: numbe
   const line = state.lines.find((l) => l.id === ship.lineId);
   if (!line) return null;
   const toBearing = (dir: [number, number]) => (Math.atan2(dir[0], dir[1]) * 180) / Math.PI;
-  if (ship.status === 'transit' && ship.transit) {
+  if ((ship.status === 'transit' || ship.status === 'toYard') && ship.transit) {
     const route = makeRoute(ship.transit);
     const d = ship.prevDist + (ship.dist - ship.prevDist) * frac;
     const { p, dir } = pointAlong(route, d);
@@ -168,6 +191,10 @@ export function shipPose(state: GameState, world: World, ship: Ship, frac: numbe
     // Sağdan seyir: karşılıklı geçen gemiler üst üste binmesin (uçlarda sıfıra iner).
     const k = Math.min(1, d / 200, (route.lengthM - d) / 200);
     return { p: offsetM(p, dir[1] * PASSING_OFFSET_M * k, -dir[0] * PASSING_OFFSET_M * k), bearing: toBearing(dir), moving: true };
+  }
+  if (ship.status === 'maintenance') {
+    const yard = state.yards.find((y) => y.id === ship.yardId);
+    return yard ? { p: yard.dock, bearing: 0, moving: false } : null;
   }
   // Yanaşmış ya da sırada: bir sonraki bacağın başında, iskele işaretinin biraz açığında.
   const route = legRoute(world, state, line, ship.leg);

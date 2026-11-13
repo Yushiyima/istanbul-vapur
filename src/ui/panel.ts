@@ -5,6 +5,7 @@
 import { LINE, SHIP_TYPES, TERSANE } from '../config/balance.ts';
 import type { Game, Tool } from '../game.ts';
 import { cycleMinutes, fmtMoney, requiredShips, shipsOnLine } from '../sim/network.ts';
+import { fleetCapacity, shipsAtYard } from '../sim/yards.ts';
 import type { ShipTypeId } from '../sim/types.ts';
 import { escapeHtml } from './html.ts';
 
@@ -12,6 +13,7 @@ const TOOLS: { id: Tool; label: string; key: string; hint: string }[] = [
   { id: 'pan', label: 'Gez', key: 'G', hint: 'Haritayı gez. İskeleye ya da gemiye tıklayınca bilgisi çıkar.' },
   { id: 'pier', label: 'İskele', key: 'İ', hint: 'Kıyıya yakın bir yere tıkla: iskele en yakın kıyı noktasına yapışır. Esc: çık.' },
   { id: 'line', label: 'Hat', key: 'H', hint: 'İskelelere sırayla tıkla. Bitirmek için son iskeleye tekrar tıkla ya da Enter. Esc: iptal.' },
+  { id: 'yard', label: 'Tersane', key: 'T', hint: `Kıyıya tersane kur (${fmtMoney(TERSANE.buildCost)}): +${TERSANE.buildCapacity} gemi kapasitesi, bakım yuvası. Yeni gemi ve bakım en yakın tersaneye gider.` },
 ];
 
 export function createPanel(root: HTMLElement, game: Game): { render(): void; refresh(): void } {
@@ -45,8 +47,8 @@ export function createPanel(root: HTMLElement, game: Game): { render(): void; re
       case 'line-delete':
         if (confirm('Hat kapatılsın mı? Gemiler yarı fiyatına satılır.')) game.deleteLine(id);
         break;
-      case 'tersane-upgrade':
-        game.upgradeTersane();
+      case 'yard-focus':
+        game.focusYard?.(el.dataset.yard ?? '');
         break;
     }
   });
@@ -122,9 +124,17 @@ export function createPanel(root: HTMLElement, game: Game): { render(): void; re
       }
       <h4>Hatlar <span class="count">${state.lines.length}</span></h4>
       <div class="lines">${lines || '<p class="small">Henüz hat yok. <b>Hat</b> aracıyla iskeleleri bağla.</p>'}</div>
-      <div class="tersane">
-        <span>⚓ ${TERSANE.name}: <b>${state.ships.length} / ${state.tersaneCapacity}</b> gemi</span>
-        <button data-action="tersane-upgrade" title="+${TERSANE.upgradeStep} gemi kapasitesi">Büyüt (${fmtMoney(TERSANE.upgradeCost)})</button>
+      <h4>Tersaneler <span class="count">${state.ships.length} / ${fleetCapacity(state)} gemi</span></h4>
+      <div class="yards">
+        ${state.yards
+          .map((y) => {
+            const at = shipsAtYard(state, y.id);
+            return `<button class="yard-row" data-action="yard-focus" data-yard="${y.id}" title="Haritada göster">
+              <span>⚓ ${escapeHtml(y.name)}</span>
+              <span class="small">kapasite ${y.capacity} · bakım ${at.active.length}/${y.slots}${at.queued.length ? ` · sırada ${at.queued.length}` : ''}${at.inbound.length ? ` · yolda ${at.inbound.length}` : ''}</span>
+            </button>`;
+          })
+          .join('')}
       </div>`;
     refresh();
   }

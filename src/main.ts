@@ -1,7 +1,7 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './style.css';
 import { Popup, type MapLayerMouseEvent, type MapMouseEvent, type Map as MapLibreMap } from 'maplibre-gl';
-import { PIER, SHIP_TYPES } from './config/balance.ts';
+import { MAINT, PIER, SHIP_TYPES, TERSANE, TIME } from './config/balance.ts';
 import { loadCityPack } from './cityPack.ts';
 import { devLog, installDevLogBridge } from './devlog.ts';
 import { Game } from './game.ts';
@@ -14,7 +14,8 @@ import { waitingCount } from './sim/passengers.ts';
 import { catchmentOf } from './sim/catchment.ts';
 import { fmtMoney } from './sim/network.ts';
 import { berthsInUse, shipPose } from './sim/tick.ts';
-import type { Pier, Ship } from './sim/types.ts';
+import type { Pier, Ship, Yard } from './sim/types.ts';
+import { fleetCapacity, shipsAtYard } from './sim/yards.ts';
 import { escapeHtml } from './ui/html.ts';
 import { createPanel } from './ui/panel.ts';
 import { toast } from './ui/toast.ts';
@@ -37,6 +38,8 @@ const STATUS_LABEL: Record<string, string> = {
   queue: 'yanaşma sırası bekliyor',
   dwell: 'iskelede',
   layover: 'terminalde, sefer saatini bekliyor',
+  toYard: 'tersaneye gidiyor',
+  maintenance: 'bakımda',
 };
 
 async function main(): Promise<void> {
@@ -70,6 +73,8 @@ async function main(): Promise<void> {
     },
     onCoverage: (visible) => setCoverageVisible(map, visible),
     onSound: (on) => setSound(on),
+    onMaintThreshold: (v) => game.setMaintThreshold(v),
+    onNightSkip: (on) => game.setNightSkip(on),
   });
   const view = { showLoad: false };
   // Kalkışta düdük: gemi durumu yanaşmışken seyre geçtiyse ve ekrandaysa.
@@ -93,9 +98,10 @@ async function main(): Promise<void> {
   const redraw = () => {
     renderNetwork(map, game, view);
     renderDraft(map, game, cursor);
-    map.getCanvas().style.cursor = game.tool === 'pier' ? 'crosshair' : game.tool === 'line' ? 'cell' : '';
-    setNoBuildEmphasis(map, game.tool === 'pier');
-    if (game.tool !== 'pier') renderGhost(map, null);
+    const placing = game.tool === 'pier' || game.tool === 'yard';
+    map.getCanvas().style.cursor = placing ? 'crosshair' : game.tool === 'line' ? 'cell' : '';
+    setNoBuildEmphasis(map, placing);
+    if (!placing) renderGhost(map, null);
   };
   game.onChange(() => {
     if (game.speedIndex) lastSpeed = game.speedIndex;
@@ -116,7 +122,7 @@ async function main(): Promise<void> {
       .addTo(map);
   });
   map.on('mouseleave', LAYER.historic, () => hoverPopup.remove());
-  for (const layer of [LAYER.pier, LAYER.ship]) {
+  for (const layer of [LAYER.pier, LAYER.ship, LAYER.yard]) {
     map.on('mouseenter', layer, () => (map.getCanvas().style.cursor = 'pointer'));
     map.on('mouseleave', layer, () => redraw());
   }
@@ -127,6 +133,10 @@ async function main(): Promise<void> {
       const r = game.previewPlacement(cursor);
       renderGhost(map, r.coast ? { click: cursor, coast: r.coast, ok: r.ok } : null);
       showTip(ev.point, r.ok ? `≈ ${fmtMoney(game.placementCost(r.coast))}` : r.message, r.ok);
+    } else if (game.tool === 'yard') {
+      const r = game.previewYard(cursor);
+      renderGhost(map, r.coast ? { click: cursor, coast: r.coast, ok: r.ok } : null);
+      showTip(ev.point, r.ok ? `Tersane ${fmtMoney(TERSANE.buildCost)}` : r.message, r.ok);
     } else if (game.tool === 'line' && game.draft.length) {
       renderDraft(map, game, cursor);
     }
@@ -153,7 +163,7 @@ async function main(): Promise<void> {
     }
   }
   game.onChange(() => {
-    if (game.tool !== 'pier') tip.hidden = true;
+    if (game.tool !== 'pier' && game.tool !== 'yard') tip.hidden = true;
   });
 
   const infoPopup = new Popup({ closeButton: true, closeOnClick: true, offset: 14, maxWidth: '290px' });
@@ -167,7 +177,10 @@ async function main(): Promise<void> {
     if (pier) return openPierPopup(pier);
     const ship = featureAt(map, ev, LAYER.ship, (id) => game.state.ships.find((s) => s.id === id));
     if (ship) return openShipPopup(ship);
+    const yard = featureAt(map, ev, LAYER.yard, (id) => game.state.yards.find((y) => y.id === id));
+    if (yard) return openYardPopup(yard);
     if (game.tool === 'pier') game.placePier([ev.lngLat.lng, ev.lngLat.lat]);
+    else if (game.tool === 'yard') game.placeYard([ev.lngLat.lng, ev.lngLat.lat]);
   });
 
   function featureAt<T>(m: MapLibreMap, ev: MapMouseEvent, layer: string, get: (id: string) => T | undefined): T | undefined {
@@ -212,22 +225,111 @@ async function main(): Promise<void> {
     infoPopup.setLngLat(pier.coast).setDOMContent(el).addTo(map);
   }
 
-  function openShipPopup(ship: Ship): void {
-    const line = game.state.lines.find((l) => l.id === ship.lineId);
+  /** Açık gemi popup'ı: konumu ve sayıları canlı güncellenir. */
+  let shipPopupId: string | null = null;
+  infoPopup.on('close', () => (shipPopupId = null));
+
+  function shipPopupHtml(ship: Ship): string {
+    const { state } = game;
+    const line = state.lines.find((l) => l.id === ship.lineId);
     const t = SHIP_TYPES[ship.type];
     const onboard = ship.onboard.reduce((s, g) => s + g.count, 0);
-    const pier = ship.pierId ? game.state.piers.find((p) => p.id === ship.pierId) : undefined;
+    const pier = ship.pierId ? state.piers.find((p) => p.id === ship.pierId) : undefined;
+    const yard = state.yards.find((y) => y.id === ship.yardId);
+    const ageDays = Math.floor((state.minute - ship.builtAt) / TIME.minutesPerDay);
+    const cond = Math.round(ship.condition);
+    const condCls = cond < MAINT.breakdownBelow ? 'bad' : cond < 60 ? 'mid' : 'good';
+    const avgLoad = (c: { loadSum: number; loadN: number }) => (c.loadN ? Math.round((100 * c.loadSum) / c.loadN) : 0);
+    const where = ship.status === 'maintenance' ? `${yard?.name ?? 'tersane'} · ${ship.readyAt ? `bitiş ${formatClock(ship.readyAt)}` : 'yuva bekliyor'}` : ship.status === 'toYard' ? `${yard?.name ?? 'tersaneye'} gidiyor${ship.broken ? ' (arızalı, çekiliyor)' : ''}` : pier ? escapeHtml(pier.name) : '';
+    const num = (n: number) => Math.round(n).toLocaleString('tr-TR');
+    return `
+      <h3>${t.name} <span class="small">#${ship.id.replace('ship-', '')}</span></h3>
+      <p>${line ? `<span class="ldot" style="background:${line.color}"></span>${escapeHtml(line.name)}` : ''}</p>
+      <p>${STATUS_LABEL[ship.status]}${where ? ` · ${where}` : ''}${ship.maintRequested ? ' · <b>bakım istendi</b>' : ''}</p>
+      <div class="cond"><span>Bakım durumu</span><div class="bar ${condCls}"><i style="width:${cond}%"></i></div><b>%${cond}</b></div>
+      <table class="stats">
+        <tr><th></th><th>Bugün</th><th>Toplam</th></tr>
+        <tr><td>Sefer</td><td>${num(ship.today.trips)}</td><td>${num(ship.total.trips)}</td></tr>
+        <tr><td>Yolcu</td><td>${num(ship.today.boardings)}</td><td>${num(ship.total.boardings)}</td></tr>
+        <tr><td>Gelir</td><td>${fmtMoney(ship.today.revenue)}</td><td>${fmtMoney(ship.total.revenue)}</td></tr>
+        <tr><td>Ort. doluluk</td><td>%${avgLoad(ship.today)}</td><td>%${avgLoad(ship.total)}</td></tr>
+        <tr><td>Mesafe</td><td>${num(ship.today.km)} km</td><td>${num(ship.total.km)} km</td></tr>
+      </table>
+      <p class="small">Şu an ${num(onboard)} / ${t.capacity} yolcu · ${t.speedKn} kn (durum nedeniyle %${Math.round(100 * (MAINT.minSpeedFactor + ((1 - MAINT.minSpeedFactor) * ship.condition) / 100))} hız) · yaş ${ageDays} gün</p>
+      <div class="row">
+        <button type="button" data-a="maint" ${ship.status === 'toYard' || ship.status === 'maintenance' ? 'disabled' : ''}>${ship.maintRequested ? 'Bakım isteğini iptal et' : 'Bakıma gönder'}</button>
+        <button type="button" class="danger" data-a="sell">Sat</button>
+      </div>`;
+  }
+
+  function openShipPopup(ship: Ship): void {
     const pose = shipPose(game.state, game.world, ship, 0);
     if (!pose) return;
     const el = document.createElement('div');
-    el.className = 'pier-popup';
-    el.innerHTML = `
-      <h3>${t.name}</h3>
-      <p>${line ? `<span class="ldot" style="background:${line.color}"></span>${escapeHtml(line.name)}` : ''}</p>
-      <p>${STATUS_LABEL[ship.status]}${pier ? ` · ${escapeHtml(pier.name)}` : ''}</p>
-      <p>Yolcu: ${onboard.toLocaleString('tr-TR')} / ${t.capacity} · ${t.speedKn} kn</p>`;
+    el.className = 'pier-popup ship-popup';
+    el.innerHTML = shipPopupHtml(ship);
+    el.addEventListener('click', (ev) => {
+      const a = (ev.target as HTMLElement).closest<HTMLElement>('[data-a]')?.dataset.a;
+      if (a === 'maint') game.toggleMaintenance(ship.id);
+      if (a === 'sell' && confirm('Gemi yarı fiyatına satılsın mı?')) {
+        game.sellShipById(ship.id);
+        infoPopup.remove();
+        return;
+      }
+      el.innerHTML = shipPopupHtml(ship);
+    });
+    shipPopupId = ship.id;
     infoPopup.setLngLat(pose.p).setDOMContent(el).addTo(map);
   }
+
+  /** Gemi popup'ını gemiyle birlikte taşı ve sayıları yenile (4 Hz). */
+  function refreshShipPopup(): void {
+    if (!shipPopupId) return;
+    const ship = game.state.ships.find((s) => s.id === shipPopupId);
+    if (!ship) {
+      infoPopup.remove();
+      return;
+    }
+    const pose = shipPose(game.state, game.world, ship, 0);
+    if (pose) infoPopup.setLngLat(pose.p);
+    const el = infoPopup.getElement()?.querySelector<HTMLElement>('.ship-popup');
+    if (el && !el.matches(':hover')) el.innerHTML = shipPopupHtml(ship);
+  }
+
+  function openYardPopup(yard: Yard): void {
+    const { state } = game;
+    const at = shipsAtYard(state, yard.id);
+    const el = document.createElement('div');
+    el.className = 'pier-popup';
+    const list = (ships: Ship[], label: string) =>
+      ships.length ? `<p class="small">${label}: ${ships.map((s) => `${SHIP_TYPES[s.type].name} #${s.id.replace('ship-', '')}${s.readyAt ? ` (${formatClock(s.readyAt)})` : ''}`).join(', ')}</p>` : '';
+    el.innerHTML = `
+      <h3>⚓ ${escapeHtml(yard.name)}</h3>
+      <p>Filo kapasitesine katkı: <b>${yard.capacity}</b> gemi (toplam ${state.ships.length} / ${fleetCapacity(state)})</p>
+      <p>Bakım yuvası: ${at.active.length} / ${yard.slots} dolu · sırada ${at.queued.length} · yolda ${at.inbound.length}</p>
+      ${list(at.active, 'Bakımda')}${list(at.queued, 'Sırada')}${list(at.inbound, 'Geliyor')}
+      <p class="small">Bakım ${Math.round(MAINT.durationMin / 60)} saat sürer, ücreti gemi fiyatının %${Math.round(MAINT.costRatio * 100)}'sı (arızada ×${MAINT.breakdownCostMul}).</p>
+      <div class="row">
+        <button type="button" data-a="cap">+${TERSANE.upgradeStep} kapasite (${fmtMoney(TERSANE.upgradeCost)})</button>
+        <button type="button" data-a="slot">+1 yuva (${fmtMoney(TERSANE.slotCost)})</button>
+      </div>`;
+    el.querySelector('[data-a=cap]')!.addEventListener('click', () => {
+      game.upgradeYard(yard.id, 'capacity');
+      openYardPopup(yard);
+    });
+    el.querySelector('[data-a=slot]')!.addEventListener('click', () => {
+      game.upgradeYard(yard.id, 'slots');
+      openYardPopup(yard);
+    });
+    shipPopupId = null;
+    infoPopup.setLngLat(yard.coast).setDOMContent(el).addTo(map);
+  }
+  game.focusYard = (id) => {
+    const y = game.state.yards.find((x) => x.id === id);
+    if (!y) return;
+    map.flyTo({ center: y.coast, zoom: Math.max(map.getZoom(), 13.5) });
+    openYardPopup(y);
+  };
 
   // ---------------------------------------------------------------- klavye
   window.addEventListener('keydown', (ev) => {
@@ -241,6 +343,7 @@ async function main(): Promise<void> {
     else if (k === 'g') game.setTool('pan');
     else if (k === 'i' || k === 'ı') game.setTool('pier');
     else if (k === 'h') game.setTool('line');
+    else if (k === 't') game.setTool('yard');
     else if (ev.key === ' ') {
       ev.preventDefault();
       game.setSpeed(game.speedIndex === 0 ? lastSpeed : 0);
@@ -273,6 +376,7 @@ async function main(): Promise<void> {
       topbar.refresh();
       panel.refresh();
       sidebar.refresh();
+      refreshShipPopup();
       for (const n of game.drainNotices()) toast(n.text, n.kind);
       if (game.state.pendingYearSummary) showYearSummary();
       game.autosave();

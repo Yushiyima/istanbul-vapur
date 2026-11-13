@@ -1,4 +1,4 @@
-import { ECON, TERSANE, TIME } from '../config/balance.ts';
+import { ECON, MAINT, TIME } from '../config/balance.ts';
 import type { DayStats, GameState, HourAcc } from './types.ts';
 
 export function emptyDay(): DayStats {
@@ -33,7 +33,8 @@ export function createGame(seed: number): GameState {
     tanker: null,
     feed: [],
     notices: [],
-    tersaneCapacity: TERSANE.capacity,
+    yards: [],
+    settings: { maintThreshold: MAINT.defaultThreshold, nightSkip: false },
     pendingYearSummary: null,
   };
 }

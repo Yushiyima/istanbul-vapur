@@ -20,7 +20,8 @@ export type FeedTopic =
   | 'gull'
   | 'happy'
   | 'night'
-  | 'historic';
+  | 'historic'
+  | 'breakdown';
 
 const AUTHORS = [
   { name: 'Moda Sakini', handle: '@modali_nese', avatar: '🧕' },
@@ -84,6 +85,10 @@ const TEMPLATES: Record<FeedTopic, readonly string[]> = {
     'Boğaz manzarası + çay + simit = pazartesi sendromuna çare.',
   ],
   night: ['Gece vapuru! Saat ikide Boğaz’da çay içmek paha biçilmez.', 'Gece seferi gelmiş, artık son vapuru kaçırma korkusu yok.'],
+  breakdown: [
+    '{pierLoc} vapur arızalandı, römorkör geldi. Yolcular olarak alkışladık.',
+    'Vapurun motoru öksürdü, kaptan "bugünlük bu kadar" dedi. {pier} iskelesinde bekliyoruz.',
+  ],
   historic: ['{pier} iskelesi yıllar sonra yeniden açıldı. Dedemin anlattığı iskele bu!', 'Tarihi {pier} iskelesi yine vapur görüyor. Gözlerim doldu.'],
 };
 

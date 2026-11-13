@@ -2,7 +2,7 @@
  * Oyun denetleyicisi: GameState + World, kullanıcı eylemleri, zaman döngüsü.
  * Arayüz ve harita bunu okur; durumu sadece buradaki metotlar değiştirir.
  */
-import { TIME } from './config/balance.ts';
+import { SHIP_TYPES, TERSANE, TIME } from './config/balance.ts';
 import { devLog } from './devlog.ts';
 import type { LngLat, PolygonCoords } from './geo/geo.ts';
 import { buildWaterIndex, landCoverage, type WaterIndex } from './map/coverage.ts';
@@ -20,10 +20,10 @@ import {
   setInterval_,
   setNight,
   upgradeBerths,
-  upgradeTersane,
 } from './sim/network.ts';
+import { buildYard, emptyCounters, ensureDefaultYard, previewYard, upgradeYardCapacity, upgradeYardSlots, yardById } from './sim/yards.ts';
 import { evaluatePlacement, findHistoricMatch, normalizeName, pickPierName, uniqueName, type PlacementResult } from './sim/piers.ts';
-import { createGame, dayIndex } from './sim/state.ts';
+import { createGame, dayIndex, inService } from './sim/state.ts';
 import { pushFeed } from './sim/feed.ts';
 import { RouteCache } from './nav/route.ts';
 import { AUTO_SLOT, loadGame, quickClear, quickLoad, quickSave, saveGame } from './save/save.ts';
@@ -32,7 +32,7 @@ import type { GameState, Notice, Pier, ShipTypeId } from './sim/types.ts';
 import { createWorld, type World } from './sim/world.ts';
 import type { CityPack } from './cityPack.ts';
 
-export type Tool = 'pan' | 'pier' | 'line';
+export type Tool = 'pan' | 'pier' | 'line' | 'yard';
 export type ToastKind = 'info' | 'ok' | 'error';
 
 const fmtLL = (p: LngLat) => `${p[1].toFixed(5)},${p[0].toFixed(5)}`;
@@ -45,6 +45,8 @@ export class Game {
   /** Çizilmekte olan hattın iskeleleri. */
   draft: string[] = [];
   selectedLineId: string | null = null;
+  /** Arayüz bağlar: tersaneyi haritada göster. */
+  focusYard?: (id: string) => void;
   private acc = 0;
   private listeners = new Set<() => void>();
   private toastFn: (msg: string, kind: ToastKind) => void = () => {};
@@ -59,18 +61,40 @@ export class Game {
     for (const w of this.world.warnings) console.warn(w);
     this.waterIndex = buildWaterIndex(pack.data.waterPolygons);
     this.state = state ? Game.normalize(state) : this.newState();
+    ensureDefaultYard(this.state, this.world);
     this.lastSavedDay = dayIndex(this.state.minute);
   }
 
   /** Eski ya da eksik kayıtları güncel alanlarla tamamlar. */
   static normalize(saved: GameState): GameState {
     const base = createGame(saved.seed ?? 1);
-    return { ...base, ...saved, today: { ...base.today, ...saved.today }, hourAcc: { ...base.hourAcc, ...(saved.hourAcc ?? {}) }, notices: [] };
+    const old = saved as GameState & { tersaneCapacity?: number };
+    const state: GameState = {
+      ...base,
+      ...saved,
+      today: { ...base.today, ...saved.today },
+      hourAcc: { ...base.hourAcc, ...(saved.hourAcc ?? {}) },
+      settings: { ...base.settings, ...(saved.settings ?? {}) },
+      yards: saved.yards ?? [],
+      notices: [],
+    };
+    // Eski kayıtlarda gemi bakım/istatistik alanları yok.
+    state.ships = state.ships.map((s) => ({ ...s, builtAt: s.builtAt ?? saved.minute, condition: s.condition ?? 100, total: s.total ?? emptyCounters(), today: s.today ?? emptyCounters() }));
+    if (!saved.yards && old.tersaneCapacity) (state as GameState & { _legacyCapacity?: number })._legacyCapacity = old.tersaneCapacity;
+    return state;
+  }
+
+  /** Eski kayıttan gelen tek tersaneyi kurar. */
+  private migrateYards(): void {
+    const legacy = (this.state as GameState & { _legacyCapacity?: number })._legacyCapacity;
+    ensureDefaultYard(this.state, this.world, legacy ?? TERSANE.capacity);
+    delete (this.state as GameState & { _legacyCapacity?: number })._legacyCapacity;
   }
 
   /** Durumu değiştirir; dünya önbellekleri (rota, havza, talep) iskele kimliklerine bağlı olduğu için sıfırlanır. */
   replaceState(state: GameState): void {
     this.state = Game.normalize(state);
+    this.migrateYards();
     this.world.routes = new RouteCache(this.world.grid);
     this.world.catchments.clear();
     this.world.od = null;
@@ -188,6 +212,13 @@ export class Game {
     return TIME.speeds[this.speedIndex] ?? 1;
   }
 
+  /** Gece seferi yokken gece saatleri hızlı mı geçiliyor? */
+  get nightSkipping(): boolean {
+    const s = this.state;
+    if (!s.settings.nightSkip || !this.speed || inService(s.minute, false)) return false;
+    return !s.lines.some((l) => l.night && s.ships.some((sh) => sh.lineId === l.id));
+  }
+
   setSpeed(i: number): void {
     this.speedIndex = Math.max(0, Math.min(TIME.speeds.length - 1, i));
     this.changed();
@@ -201,7 +232,8 @@ export class Game {
     this.lastAdvance = { ticks: 0, ms: 0 };
     if (!this.speed) return 0;
     const t0 = performance.now();
-    this.acc += (dtMs * this.speed) / TIME.realMsPerMinute;
+    const speed = this.nightSkipping ? Math.max(this.speed, TIME.nightSkipSpeed) : this.speed;
+    this.acc += (dtMs * speed) / TIME.realMsPerMinute;
     let n = 0;
     while (this.acc >= 1 && n < TIME.maxTicksPerFrame) {
       tick(this.state, this.world);
@@ -390,6 +422,17 @@ export class Game {
     this.changed();
   }
 
+  sellShipById(shipId: string): void {
+    const ship = this.state.ships.find((s) => s.id === shipId);
+    if (!ship) return;
+    this.state.ships = this.state.ships.filter((s) => s.id !== shipId);
+    const refund = Math.round(SHIP_TYPES[ship.type].price * TERSANE.resaleRatio);
+    this.state.money += refund;
+    this.toast(`${SHIP_TYPES[ship.type].name} satıldı: +${fmtMoney(refund)}.`, 'info');
+    devLog('game', `gemi satıldı ${shipId} · kasa ${this.money()}`);
+    this.changed();
+  }
+
   removeShip(id: string): void {
     const r = sellShip(this.state, id);
     devLog('game', `gemi satıldı ${id}: ${r.ok ? 'tamam' : r.message} · kasa ${this.money()}`);
@@ -404,10 +447,56 @@ export class Game {
     this.changed();
   }
 
-  upgradeTersane(): void {
-    const r = upgradeTersane(this.state);
-    devLog('game', `tersane: ${r.ok ? `kapasite ${r.value}` : r.message} · kasa ${this.money()}`);
-    this.toast(r.ok ? `Tersane kapasitesi ${r.value} gemi.` : r.message, r.ok ? 'ok' : 'error');
+  // ---------------------------------------------------------------- tersane ve bakım
+
+  previewYard(click: LngLat): PlacementResult {
+    return previewYard(this.state, this.world, click);
+  }
+
+  placeYard(click: LngLat): void {
+    const r = buildYard(this.state, this.world, click);
+    if (!r.ok) {
+      this.toast(r.message, 'error');
+      devLog('game', `tersane reddedildi: ${r.message}`);
+      return;
+    }
+    this.toast(`${r.value.name} kuruldu: +${r.value.capacity} gemi kapasitesi, ${r.value.slots} bakım yuvası.`, 'ok');
+    devLog('game', `tersane kuruldu "${r.value.name}" kıyı=${fmtLL(r.value.coast)} · kasa ${this.money()}`);
+    this.changed();
+  }
+
+  upgradeYard(id: string, what: 'capacity' | 'slots'): void {
+    const r = what === 'capacity' ? upgradeYardCapacity(this.state, id) : upgradeYardSlots(this.state, id);
+    const y = yardById(this.state, id);
+    this.toast(r.ok ? `${y?.name}: ${what === 'capacity' ? `filo kapasitesi +${TERSANE.upgradeStep}` : 'bakım yuvası +1'}.` : r.message, r.ok ? 'ok' : 'error');
+    devLog('game', `tersane ${what} ${id}: ${r.ok ? r.value : r.message} · kasa ${this.money()}`);
+    this.changed();
+  }
+
+  /** Gemiyi bir sonraki yanaşmada bakıma gönder (iptal için tekrar çağır). */
+  toggleMaintenance(shipId: string): void {
+    const ship = this.state.ships.find((s) => s.id === shipId);
+    if (!ship) return;
+    if (ship.status === 'toYard' || ship.status === 'maintenance') {
+      this.toast('Gemi zaten tersanede ya da yolda.', 'info');
+      return;
+    }
+    ship.maintRequested = !ship.maintRequested;
+    if (!ship.maintRequested) delete ship.maintRequested;
+    this.toast(ship.maintRequested ? 'Gemi ilk yanaşmada tersaneye gidecek.' : 'Bakım isteği iptal edildi.', 'info');
+    devLog('game', `bakım isteği ${shipId}: ${!!ship.maintRequested} · durum %${Math.round(ship.condition)}`);
+    this.changed();
+  }
+
+  setMaintThreshold(v: number): void {
+    this.state.settings.maintThreshold = v;
+    devLog('game', `otomatik bakım eşiği %${v}`);
+    this.changed();
+  }
+
+  setNightSkip(on: boolean): void {
+    this.state.settings.nightSkip = on;
+    devLog('game', `geceyi hızlı geç: ${on}`);
     this.changed();
   }
 

@@ -21,12 +21,12 @@ Açık işler. Bitince `[x]` yap ya da sil; tasarım kararıysa `DECISIONS.md`'y
   (tanker, konteyner, dökme yük, yolcu; farklı boy ve hız), haritada görünsün; vapur bir gemiye
   fazla yaklaşırsa yavaşlasın / beklesin / rotasını yerel olarak değiştirsin (çarpışmadan kaçınma).
   Mevcut tanker olayı bu trafiğe dönüşsün.
-- [ ] **Gemi istatistikleri.** Gemiye tıklayınca: taşıdığı yolcu (bugün/toplam), sefer sayısı,
+- [x] **Gemi istatistikleri.** Gemiye tıklayınca: taşıdığı yolcu (bugün/toplam), sefer sayısı,
   gelir, doluluk ortalaması, kat ettiği mesafe, yaşı, bakım durumu.
-- [ ] **Bakım mekaniği.** Gemilerin durumu seyirle (km/saat) azalsın; düştükçe hız düşsün, arıza
+- [x] **Bakım mekaniği.** Gemilerin durumu seyirle (km/saat) azalsın; düştükçe hız düşsün, arıza
   riski artsın (arızada sefer iptali, çekici/tersaneye dönüş). Bakım tersanede yapılsın: süre ve
   maliyet, bakımdayken gemi hatta yok. Otomatik bakım eşiği ayarı.
-- [ ] **Tersaneler haritada ve kurulabilir.** Haliç Tersanesi belirgin bir işaretle görünsün;
+- [x] **Tersaneler haritada ve kurulabilir.** Haliç Tersanesi belirgin bir işaretle görünsün;
   oyuncu kıyıya yeni tersane kurabilsin (maliyet, kapasite, bakım yuvası). Yeni gemi ve bakım
   en yakın tersaneye gider.
 - [ ] **Yeni veri katmanları:** raylı sistem istasyonları ve aktarma yarıçapları, nüfus yoğunluğu
@@ -38,7 +38,7 @@ Açık işler. Bitince `[x]` yap ya da sil; tasarım kararıysa `DECISIONS.md`'y
   istatistik şişiyor, memnuniyetteki kalabalık puanı sert. Grup başına bir kez saymak daha doğru.
 - [x] **Tur süresi akıntısız:** gereken gemi hesabı Boğaz akıntısını ve sisi hesaba katmıyor.
 - [ ] **Yıl uzunluğu:** 12 oyun günü = 1 yıl (bir gün bir ay). Oynanınca kısa/uzun geliyorsa ayarla.
-- [ ] **Gece:** 23:30–06:00 arası gece hattı yoksa ekran durgun; isteğe bağlı "geceyi hızlı geç".
+- [x] **Gece:** 23:30–06:00 arası gece hattı yoksa ekran durgun; isteğe bağlı "geceyi hızlı geç".
 
 ### Teknik
 - [ ] **Kapsama hesabı** iskele başına ~25 ms (daire − tüm deniz poligonu). Su poligonunu

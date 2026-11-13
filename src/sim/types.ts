@@ -31,7 +31,30 @@ export interface Line {
   createdAt: number;
 }
 
-export type ShipStatus = 'transit' | 'sailing' | 'queue' | 'dwell' | 'layover';
+export type ShipStatus = 'transit' | 'sailing' | 'queue' | 'dwell' | 'layover' | 'toYard' | 'maintenance';
+
+/** Tersane: yeni gemiler buradan çıkar, bakım burada yapılır. */
+export interface Yard {
+  id: string;
+  name: string;
+  coast: LngLat;
+  dock: LngLat;
+  /** Filo kapasitesine katkı (gemi). */
+  capacity: number;
+  /** Aynı anda bakım yapılabilen gemi sayısı. */
+  slots: number;
+  builtAt: number;
+}
+
+export interface ShipCounters {
+  trips: number;
+  boardings: number;
+  revenue: number;
+  km: number;
+  /** Kalkıştaki doluluk oranları toplamı ve sayısı (ortalama için). */
+  loadSum: number;
+  loadN: number;
+}
 
 /** Gemideki yolcu grubu: inecekleri iskele ve son varış. */
 export interface OnboardGroup {
@@ -59,10 +82,28 @@ export interface Ship {
   readyAt: number;
   arrivedAt: number;
   onboard: OnboardGroup[];
-  /** Tersaneden hatta giderken izlenen rota. */
+  /** Tersaneden hatta (ya da hattan tersaneye) giderken izlenen rota. */
   transit?: LngLat[];
   /** Transit bitince başlayacağı terminal bacağı. */
   transitLeg?: number;
+  builtAt: number;
+  /** Bakım durumu 0–100. Düştükçe yavaşlar, arıza riski artar. */
+  condition: number;
+  /** Bakıma gittiği / bakımda olduğu tersane. */
+  yardId?: string;
+  /** Arızalı olarak çekiliyor mu (yavaş gider, onarım pahalı). */
+  broken?: boolean;
+  /** Oyuncu bakım istedi: bir sonraki yanaşmada tersaneye gider. */
+  maintRequested?: boolean;
+  total: ShipCounters;
+  today: ShipCounters;
+}
+
+export interface Settings {
+  /** Bu durumun altına düşen gemi terminalde bakıma gider (0 = kapalı). */
+  maintThreshold: number;
+  /** Gece seferi olmayan saatleri hızlı geç. */
+  nightSkip: boolean;
 }
 
 /** İskelede bekleyen yolcu grubu. */
@@ -177,7 +218,8 @@ export interface GameState {
   feed: FeedPost[];
   /** Arayüzün toast olarak göstereceği bildirimler (gösterilince boşaltılır). */
   notices: Notice[];
-  tersaneCapacity: number;
+  yards: Yard[];
+  settings: Settings;
   /** Yıl sonu özeti bekliyor mu (arayüz gösterince temizler). */
   pendingYearSummary: null | { year: number; revenue: number; costs: number; boardings: number; satisfaction: number; rewards: number };
 }

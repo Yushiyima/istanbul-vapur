@@ -76,3 +76,13 @@ Belirsiz tasarım kararları ve gerekçeleri, her biri bir satır.
 - **Katmanlar:** nüfus ve çekim H3 altıgenleri, 7 sınıflı dilim ölçeği (nüfus mavi-mor, çekim turuncu); hat doluluğu (son kalkışların doluluk ortalaması hat kalınlığına); kapsama alanlarını gizle/göster.
 - **Denge** (`node scripts/simulate.ts 12`): başlangıç ağıyla 1 yıl: ~470 bin yolcu, ~10,4 M ₺ gelir, ~2,6 M ₺ gider, ortalama memnuniyet ~%88. %95 hedefi için gemi eklemek gerekiyor. Tanker olasılığı %22'den %12'ye indirildi (günde 3–5 geçiş fazla bildirim üretiyordu).
 - **Yapılmayanlar:** arabalı vapurun iskele kısıtı ve araç geliri, hat düzenleme (iskele ekle/çıkar), mobil dokunmatik için ayrı arayüz.
+
+## Bakım, tersaneler, gemi istatistikleri
+
+- **Dalgakıran:** OSM `man_made=breakwater|groyne` (19 çizgi) su ızgarasında kara. Eminönü–Kadıköy rotası mendireğin dışından dolaştığı için 3,7 km'den 5,4 km'ye çıktı (gerçeğe yakın); tur 41 dk, 20 dk aralık için 3 vapur. Başlangıç hattı gereken sayıda gemiyle geliyor.
+- **Tur süresi** Boğaz akıntısını hesaba katıyor (rota boyunca 1/hız ortalaması), bacaklar tam dakikaya yuvarlanıyor, gereken gemiye 2 dk tarife payı ekleniyor.
+- **Bakım durumu** (0–100) km başına düşüyor (vapur 0,025/km → günde ~6 puan). Durum 0'da hız %80. %30'un altında her kalkışta arıza olasılığı (0'da %12): gemi kalkmaz, yolcular iskelede kalır, gemi %45 hızla tersaneye çekilir, onarım ×1,6.
+- **Bakım** tersanede 8 saat, ücreti gemi fiyatının %6'sı. Otomatik eşik (varsayılan %35) altına düşen gemi terminalde yanaşınca tersaneye gider. Oyuncu gemi popup'ından "Bakıma gönder" diyebilir (ilk yanaşmada gider). Yuva doluysa tersanede sırada bekler. Bakım biten gemi daha az gemili terminale döner.
+- **Tersaneler** artık oyun durumunda: Haliç Tersanesi (kapasite 6, 2 yuva) başlangıçta var. Oyuncu kıyıya yeni tersane kurabiliyor (4 M ₺, +4 kapasite, 1 yuva). Kurallar iskeleyle aynı, iskele/tersaneye 400 m'den yakın olamaz. Filo kapasitesi = tersanelerin toplamı. Yeni gemi ve bakım en yakın tersaneye gidiyor. Eski kayıtlardaki tek kapasite değeri Haliç Tersanesi'ne aktarılıyor.
+- **Gemi istatistikleri:** bugün/toplam sefer, yolcu, gelir, ortalama doluluk, mesafe; yaş; durum çubuğu. Popup gemiyle birlikte hareket ediyor ve canlı güncelleniyor.
+- **Gece:** "Geceyi hızlı geç" açıkken gece seferi olan hat yoksa 23:30–06:00 arası 24× hızla geçiliyor.

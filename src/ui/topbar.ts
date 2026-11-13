@@ -62,7 +62,7 @@ export function createTopbar(root: HTMLElement, game: Game): { refresh(): void; 
     const parts: string[] = [WEATHER_LABEL[currentWeather(s)] ?? ''];
     const nightOnly = s.lines.filter((l) => l.night).length;
     if (!inService(s.minute, false)) {
-      parts.push(nightOnly ? `🌙 Gece · ${nightOnly} gece hattı çalışıyor` : `🌙 Gece · seferler ${formatHour(TIME.serviceStartMin)}'da başlar`);
+      parts.push(nightOnly ? `🌙 Gece · ${nightOnly} gece hattı çalışıyor` : `🌙 Gece · seferler ${formatHour(TIME.serviceStartMin)}'da başlar${game.nightSkipping ? ' (hızlı geçiliyor)' : ''}`);
     }
     const w = currentWeather(s);
     if (w === 'lodos' || w === 'poyraz') {

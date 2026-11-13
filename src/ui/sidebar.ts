@@ -1,7 +1,7 @@
 /**
  * Sağ kolon: hedefler, Peron akışı, katmanlar, kayıt. Sekmeli, katlanabilir.
  */
-import { GOALS } from '../config/balance.ts';
+import { GOALS, MAINT } from '../config/balance.ts';
 import type { Game } from '../game.ts';
 import { GOAL_IDS, goalProgress } from '../sim/goals.ts';
 import { fmtMoney } from '../sim/network.ts';
@@ -18,6 +18,8 @@ export interface SidebarHandlers {
   onLayer?(id: LayerId): void;
   onCoverage?(visible: boolean): void;
   onSound?(on: boolean): void;
+  onMaintThreshold?(v: number): void;
+  onNightSkip?(on: boolean): void;
 }
 
 export function createSidebar(root: HTMLElement, game: Game, h: SidebarHandlers): { render(): void; refresh(): void } {
@@ -52,6 +54,10 @@ export function createSidebar(root: HTMLElement, game: Game, h: SidebarHandlers)
     } else if (el.name === 'coverage') {
       coverage = el.checked;
       h.onCoverage?.(coverage);
+    } else if (el.name === 'maint') {
+      h.onMaintThreshold?.(Number(el.value));
+    } else if (el.name === 'nightSkip') {
+      h.onNightSkip?.(el.checked);
     } else if (el.name === 'sound') {
       sound = el.checked;
       h.onSound?.(sound);
@@ -100,7 +106,12 @@ export function createSidebar(root: HTMLElement, game: Game, h: SidebarHandlers)
       <p class="small">Nüfus ve çekim: açık renk az, koyu çok (dilimlere göre).</p>`
       : '';
     const audio = h.onSound ? `<h5>Ses</h5><label><input type="checkbox" name="sound"${sound ? ' checked' : ''}> Vapur düdüğü</label>` : '';
+    const st = game.state.settings;
+    const play = `<h5>Oyun</h5>
+      <label>Otomatik bakım: <select name="maint">${MAINT.thresholdOptions.map((v) => `<option value="${v}"${v === st.maintThreshold ? ' selected' : ''}>${v ? `durum %${v} altına düşünce` : 'kapalı'}</option>`).join('')}</select></label>
+      <label><input type="checkbox" name="nightSkip"${st.nightSkip ? ' checked' : ''}> Gece seferi yoksa geceyi hızlı geç</label>`;
     return `
+      ${play}
       ${layers}
       ${audio}
       <h5>Kayıt</h5>

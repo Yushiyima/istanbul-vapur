@@ -6,6 +6,7 @@ import { haversineM, type LngLat } from '../geo/geo.ts';
 import { landComponentAt } from '../nav/grid.ts';
 import { routeTimeFactor } from './events.ts';
 import { catchmentOf, computeCatchment } from './catchment.ts';
+import { ensureDefaultYard, fleetCapacity, nearestYard, newShipFields, pickTerminalLeg, returnToLine } from './yards.ts';
 import { nextId } from './state.ts';
 import type { GameState, Line, Pier, Ship, ShipTypeId } from './types.ts';
 import { legCount, legEnds, legRoute, pierById, sideOfComp, type World } from './world.ts';
@@ -156,15 +157,16 @@ export function shipsOnLine(state: GameState, lineId: string): Ship[] {
 export function buyShip(state: GameState, world: World, lineId: string, opts: { free?: boolean; atTerminal?: boolean } = {}): Result<Ship> {
   const line = state.lines.find((l) => l.id === lineId);
   if (!line) return fail('Hat yok.');
-  if (state.ships.length >= state.tersaneCapacity) return fail(`Tersane kapasitesi dolu (${state.tersaneCapacity} gemi).`);
+  ensureDefaultYard(state, world);
+  const cap = fleetCapacity(state);
+  if (state.ships.length >= cap) return fail(`Tersane kapasitesi dolu (${cap} gemi). Tersaneyi büyüt ya da yeni tersane kur.`);
   const price = opts.free ? 0 : SHIP_TYPES[line.shipType].price;
   if (price > state.money) return fail(`Yetersiz bütçe: ${SHIP_TYPES[line.shipType].name} ${fmtMoney(price)}.`);
 
-  // Terminalleri sırayla doldur: gemiler iki uca dağılsın.
-  const existing = shipsOnLine(state, lineId).length;
+  // Gemiler iki terminale dengeli dağılsın.
   const n = line.pierIds.length;
-  const startLeg = existing % 2 === 0 ? 0 : n - 1;
-  const terminalId = line.pierIds[existing % 2 === 0 ? 0 : n - 1]!;
+  const startLeg = pickTerminalLeg(state, line);
+  const terminalId = line.pierIds[startLeg === 0 ? 0 : n - 1]!;
   const terminal = pierById(state, terminalId)!;
 
   const ship: Ship = {
@@ -179,14 +181,16 @@ export function buyShip(state: GameState, world: World, lineId: string, opts: { 
     readyAt: state.minute,
     arrivedAt: state.minute,
     onboard: [],
+    ...newShipFields(state),
   };
   if (!opts.atTerminal) {
-    const route = world.routes.get('tersane', world.tersane.dock, terminal.id, terminal.dock);
-    if (route) {
-      ship.status = 'transit';
-      ship.transit = route.points;
+    // Yeni gemi terminale en yakın tersaneden çıkar.
+    const yard = nearestYard(state, terminal.dock);
+    if (yard) {
+      state.ships.push(ship);
+      returnToLine(state, world, ship, yard);
+      state.ships.pop();
       ship.transitLeg = startLeg;
-      ship.pierId = null;
     }
   }
   state.ships.push(ship);
@@ -218,14 +222,6 @@ export function changeShipType(state: GameState, world: World, lineId: string, t
   line.shipType = type;
   for (let i = 0; i < count; i++) buyShip(state, world, lineId);
   return { ok: true, value: count };
-}
-
-export function upgradeTersane(state: GameState): Result<number> {
-  if (state.money < TERSANE.upgradeCost) return fail(`Yetersiz bütçe: ${fmtMoney(TERSANE.upgradeCost)}.`);
-  state.money -= TERSANE.upgradeCost;
-  state.today.costs += TERSANE.upgradeCost;
-  state.tersaneCapacity += TERSANE.upgradeStep;
-  return { ok: true, value: state.tersaneCapacity };
 }
 
 /** Kuş uçuşu mesafe, iskele çifti (talep modeli için). */

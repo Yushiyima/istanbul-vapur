@@ -47,6 +47,8 @@ export const TIME = {
   speeds: [0, 1, 2, 4, 8] as const,
   /** Tek karede en fazla kaç tick (yavaş makinede donmayı önler). */
   maxTicksPerFrame: 40,
+  /** "Geceyi hızlı geç" açıkken gece seferi yoksa hız. */
+  nightSkipSpeed: 24,
   serviceStartMin: 6 * 60,
   serviceEndMin: 23 * 60 + 30,
 } as const;
@@ -80,12 +82,42 @@ export const TERSANE = {
   name: 'Haliç Tersanesi',
   lat: 41.0352,
   lng: 28.9605,
-  /** Başlangıç filo kapasitesi. */
+  /** Başlangıç tersanesinin filo kapasitesi. */
   capacity: 6,
+  slots: 2,
   upgradeStep: 4,
   upgradeCost: 2_000_000,
+  slotCost: 1_500_000,
+  maxSlots: 6,
+  /** Yeni tersane. */
+  buildCost: 4_000_000,
+  buildCapacity: 4,
+  buildSlots: 1,
+  /** Tersane ile iskele/tersane arası en az mesafe (m). */
+  minSpacingM: 400,
   /** Gemi satışında geri dönen oran. */
   resaleRatio: 0.5,
+} as const;
+
+// ---------------------------------------------------------------- bakım
+
+export const MAINT = {
+  /** Km başına durum kaybı (puan). Vapur günde ~250 km gider. */
+  wearPerKm: { vapur: 0.025, denizOtobusu: 0.035, arabali: 0.03 },
+  /** Durum 0'da hız bu orana iner. */
+  minSpeedFactor: 0.8,
+  /** Bu durumun altında arıza riski başlar. */
+  breakdownBelow: 30,
+  /** Durum 0'da her kalkışta arıza olasılığı. */
+  breakdownChanceAtZero: 0.12,
+  /** Bakım süresi (dk) ve ücreti (gemi fiyatına oran). */
+  durationMin: 8 * 60,
+  costRatio: 0.06,
+  /** Arızalı gemi çekilirken hız oranı, onarım ücret çarpanı. */
+  towSpeedFactor: 0.45,
+  breakdownCostMul: 1.6,
+  defaultThreshold: 35,
+  thresholdOptions: [0, 25, 35, 50],
 } as const;
 
 // ---------------------------------------------------------------- ekonomi
